@@ -16,7 +16,15 @@ export interface IScratchRepo {
     userId: string;
     deviceId: string;
   }): Promise<ScratchPadMeta | null>;
+  getById(id: string, meta: {
+    userId: string;
+    deviceId: string;
+  }): Promise<ScratchPadMeta | null>;
   remove(path: string, meta: {
+    userId: string;
+    deviceId: string;
+  }): Promise<void>;
+  removeBYId(id: string, meta: {
     userId: string;
     deviceId: string;
   }): Promise<void>;

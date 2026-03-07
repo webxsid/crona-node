@@ -19,6 +19,11 @@ export interface IIssueRepository {
     userId: string
   ): Promise<Issue[]>;
 
+  listDeletedByStream(
+    streamId: string,
+    userId: string
+  ): Promise<Issue[]>;
+
   listByTodoForDate(
     todoForDate: string,
     userId: string
@@ -41,6 +46,46 @@ export interface IIssueRepository {
 
   softDelete(
     issueId: string,
+    meta: {
+      userId: string;
+      now: string;
+    }
+  ): Promise<void>;
+
+  cascadeSoftDeleteByStreamId(
+    streamId: string,
+    meta: {
+      userId: string;
+      now: string;
+    }
+  ): Promise<void>
+
+  cascadeSoftDeleteByRepoId(
+    repoId: string,
+    meta: {
+      userId: string;
+      now: string;
+    }
+  ): Promise<void>
+
+  restoreDeletedById(
+    issueId: string,
+    meta: {
+      userId: string;
+      now: string;
+    }
+  ): Promise<void>;
+
+  restoreDeletedByStreamId(
+    streamId: string,
+    meta: {
+      userId: string;
+      now: string;
+    }
+  ): Promise<void>;
+
+  restoreDeletedByRepoId(
+    repoId: string,
     meta: {
       userId: string;
       now: string;

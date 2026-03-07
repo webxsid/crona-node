@@ -7,7 +7,7 @@ export type OpEntity =
   | "active_context"
   | "stash";
 
-export type OpAction = "create" | "update" | "delete";
+export type OpAction = "create" | "update" | "delete" | "restore";
 
 export interface Op {
   id: string;

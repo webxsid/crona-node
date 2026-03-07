@@ -13,6 +13,8 @@ export interface IRepoRepository {
 
   list(userId: string): Promise<Repo[]>;
 
+  listDeleted(userId: string): Promise<Repo[]>;
+
   update(
     repoId: string,
     updates: Partial<Omit<Repo, "id">>,
@@ -23,6 +25,14 @@ export interface IRepoRepository {
   ): Promise<Repo>;
 
   softDelete(
+    repoId: string,
+    meta: {
+      userId: string;
+      now: string;
+    }
+  ): Promise<void>;
+
+  restore(
     repoId: string,
     meta: {
       userId: string;

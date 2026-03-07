@@ -12,7 +12,7 @@ export interface KernelInfo {
 
 const CRONA_DIR = path.join(os.homedir(), ".crona");
 const KERNEL_INFO_FILE = path.join(CRONA_DIR, "kernel.json");
-const CRONA_SCRATCH_DIR = path.join(CRONA_DIR, "scratch");
+export const CRONA_SCRATCH_DIR = path.join(CRONA_DIR, "scratch");
 
 /**
  * Ensure ~/.crona exists with safe permissions

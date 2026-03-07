@@ -327,7 +327,7 @@ describe("@issue @e2e", () => {
 
     const updated = await api<Issue>(
       kernel.baseUrl,
-      `/issue/${issue.id}/todo:clear`,
+      `/issue/${issue.id}/todo/clear`,
       {
         method: "PUT",
         headers: {
@@ -408,7 +408,7 @@ describe("@issue @e2e", () => {
       totalEstimatedMinutes: number;
     }>(
       kernel.baseUrl,
-      `/issues/summary:today`,
+      `/issues/summary/today`,
       {
         headers: {
           Authorization: `Bearer ${kernel.token}`,

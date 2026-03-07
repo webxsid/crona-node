@@ -19,6 +19,11 @@ export interface IStreamRepository {
     userId: string
   ): Promise<Stream[]>;
 
+  listDeletedByRepo(
+    repoId: string,
+    userId: string
+  ): Promise<Stream[]>;
+
   update(
     streamId: string,
     updates: {
@@ -33,6 +38,30 @@ export interface IStreamRepository {
 
   softDelete(
     streamId: string,
+    meta: {
+      userId: string;
+      now: string;
+    }
+  ): Promise<void>;
+
+  cascadeSoftDeleteByRepoId(
+    repoId: string,
+    meta: {
+      userId: string;
+      now: string;
+    }
+  ): Promise<void>
+
+  restore(
+    streamId: string,
+    meta: {
+      userId: string;
+      now: string;
+    }
+  ): Promise<void>;
+
+  restoreByRepoId(
+    repoId: string,
     meta: {
       userId: string;
       now: string;

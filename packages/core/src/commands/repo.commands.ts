@@ -1,6 +1,8 @@
 import { randomUUID } from "crypto";
 import type { Repo } from "../domain/repo";
 import type { ICommandContext } from "./context";
+import { cascadeSoftDeleteIssuesByRepoId } from "./issue.commands";
+import { cascadeDeleteStreams } from "./stream.commands";
 
 /**
  * Create a new repo
@@ -39,6 +41,11 @@ export async function createRepo(
     userId: ctx.userId,
     deviceId: ctx.deviceId,
   });
+
+  ctx.events.emit({
+    type: "repo.created",
+    payload: repo,
+  })
 
   return repo;
 }
@@ -94,7 +101,6 @@ export async function updateRepo(
 
 /**
  * Delete a repo (soft delete)
- * NOTE: cascading deletes are handled at storage or command level later
  */
 export async function deleteRepo(
   ctx: ICommandContext,
@@ -112,6 +118,32 @@ export async function deleteRepo(
     entity: "repo",
     entityId: repoId,
     action: "delete",
+    payload: null,
+    timestamp: now,
+    userId: ctx.userId,
+    deviceId: ctx.deviceId,
+  });
+
+  await cascadeDeleteStreams(ctx, repoId);
+  await cascadeSoftDeleteIssuesByRepoId(ctx, repoId);
+}
+
+export async function restoreRepo(
+  ctx: ICommandContext,
+  repoId: string
+): Promise<void> {
+  const now = ctx.now();
+
+  await ctx.repos.restore(repoId, {
+    userId: ctx.userId,
+    now,
+  });
+
+  await ctx.ops.append({
+    id: randomUUID(),
+    entity: "repo",
+    entityId: repoId,
+    action: "restore",
     payload: null,
     timestamp: now,
     userId: ctx.userId,

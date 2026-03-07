@@ -84,6 +84,29 @@ export class ScratchRepo implements IScratchRepo {
     };
   }
 
+  async getById(id: string, meta: {
+    userId: string;
+    deviceId: string;
+  }): Promise<ScratchPadMeta | null> {
+    const row = await SqliteDb.getDB()
+      .selectFrom("scratch_pad_meta")
+      .selectAll()
+      .where("id", "=", id)
+      .where("user_id", "=", meta.userId)
+      .where("device_id", "=", meta.deviceId)
+      .executeTakeFirst();
+
+    if (!row) return null;
+
+    return {
+      id: row.id,
+      name: row.name,
+      lastOpenedAt: new Date(row.last_opened_at),
+      path: row.path,
+      pinned: row.pinned === 1,
+    };
+  }
+
   async remove(path: string, meta: {
     userId: string;
     deviceId: string;
@@ -91,6 +114,18 @@ export class ScratchRepo implements IScratchRepo {
     await SqliteDb.getDB()
       .deleteFrom("scratch_pad_meta")
       .where("path", "=", path)
+      .where("user_id", "=", meta.userId)
+      .where("device_id", "=", meta.deviceId)
+      .execute();
+  }
+
+  async removeBYId(id: string, meta: {
+    userId: string;
+    deviceId: string;
+  }): Promise<void> {
+    await SqliteDb.getDB()
+      .deleteFrom("scratch_pad_meta")
+      .where("id", "=", id)
       .where("user_id", "=", meta.userId)
       .where("device_id", "=", meta.deviceId)
       .execute();

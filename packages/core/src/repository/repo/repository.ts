@@ -56,6 +56,22 @@ export class SqliteRepoRepository implements IRepoRepository {
     }));
   }
 
+  async listDeleted(userId: string): Promise<Repo[]> {
+    const rows = await SqliteDb.getDB()
+      .selectFrom("repos")
+      .select(["id", "name", "color"])
+      .where("user_id", "=", userId)
+      .where("deleted_at", "is not", null)
+      .orderBy("created_at", "asc")
+      .execute();
+
+    return rows.map((r) => ({
+      id: r.id,
+      name: r.name,
+      color: r.color ?? undefined,
+    }));
+  }
+
   async update(
     repoId: string,
     updates: { name?: string; color?: string },
@@ -104,4 +120,25 @@ export class SqliteRepoRepository implements IRepoRepository {
       throw new Error("Repo not found or already deleted");
     }
   }
+
+  async restore(
+    repoId: string,
+    meta: { userId: string; now: string }
+  ): Promise<void> {
+    const result = await SqliteDb.getDB()
+      .updateTable("repos")
+      .set({
+        deleted_at: null,
+        updated_at: meta.now,
+      })
+      .where("id", "=", repoId)
+      .where("user_id", "=", meta.userId)
+      .where("deleted_at", "is not", null)
+      .executeTakeFirst();
+
+    if (result.numUpdatedRows === BigInt(0)) {
+      throw new Error("Repo not found or not deleted");
+    }
+  }
+
 }

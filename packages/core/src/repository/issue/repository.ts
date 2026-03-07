@@ -92,6 +92,40 @@ export class SqliteIssueRepository implements IIssueRepository {
     }));
   }
 
+  async listDeletedByStream(
+    streamId: string,
+    userId: string
+  ): Promise<Issue[]> {
+    // join with streams to ensure the stream exists and is not deleted
+    const rows = await SqliteDb.getDB()
+      .selectFrom("issues")
+      .innerJoin("streams", "streams.id", "issues.stream_id")
+      .select([
+        "issues.id",
+        "issues.stream_id",
+        "issues.title",
+        "issues.status",
+        "issues.estimate_minutes",
+        "issues.notes",
+        "issues.todo_for_date",
+      ])
+      .where("issues.stream_id", "=", streamId)
+      .where("issues.user_id", "=", userId)
+      .where("issues.deleted_at", "is not", null)
+      .where("streams.deleted_at", "is", null)
+      .execute();
+
+    return rows.map((r) => ({
+      id: r.id,
+      streamId: r.stream_id,
+      title: r.title,
+      status: r.status as IssueStatus,
+      estimateMinutes: r.estimate_minutes ?? undefined,
+      notes: r.notes ?? undefined,
+      todoForDate: r.todo_for_date ?? undefined,
+    }));
+  }
+
   async update(
     issueId: string,
     updates: {
@@ -152,6 +186,104 @@ export class SqliteIssueRepository implements IIssueRepository {
     if (result.numUpdatedRows === BigInt(0)) {
       throw new Error("Issue not found or already deleted");
     }
+  }
+
+  async cascadeSoftDeleteByStreamId(
+    streamId: string,
+    meta: { userId: string; now: string }
+  ): Promise<void> {
+    await SqliteDb.getDB()
+      .updateTable("issues")
+      .set({
+        deleted_at: meta.now,
+        updated_at: meta.now,
+      })
+      .where("stream_id", "=", streamId)
+      .where("user_id", "=", meta.userId)
+      .where("deleted_at", "is", null)
+      .execute();
+  }
+
+  async cascadeSoftDeleteByRepoId(
+    repoId: string,
+    meta: { userId: string; now: string }
+  ): Promise<void> {
+    await SqliteDb.getDB()
+      .updateTable("issues")
+      .set({
+        deleted_at: meta.now,
+        updated_at: meta.now,
+      })
+      .where("stream_id", "in",
+        SqliteDb.getDB()
+          .selectFrom("streams")
+          .select("id")
+          .where("repo_id", "=", repoId)
+          .where("user_id", "=", meta.userId)
+          .where("deleted_at", "is", null)
+      )
+      .where("user_id", "=", meta.userId)
+      .where("deleted_at", "is", null)
+      .execute();
+  }
+
+  async restoreDeletedById(
+    issueId: string,
+    meta: { userId: string; now: string }
+  ): Promise<void> {
+    const result = await SqliteDb.getDB()
+      .updateTable("issues")
+      .set({
+        deleted_at: null,
+        updated_at: meta.now,
+      })
+      .where("id", "=", issueId)
+      .where("user_id", "=", meta.userId)
+      .where("deleted_at", "is not", null)
+      .executeTakeFirst();
+
+    if (result.numUpdatedRows === BigInt(0)) {
+      throw new Error("Issue not found or not deleted");
+    }
+  }
+
+  async restoreDeletedByStreamId(
+    streamId: string,
+    meta: { userId: string; now: string }
+  ): Promise<void> {
+    await SqliteDb.getDB()
+      .updateTable("issues")
+      .set({
+        deleted_at: null,
+        updated_at: meta.now,
+      })
+      .where("stream_id", "=", streamId)
+      .where("user_id", "=", meta.userId)
+      .where("deleted_at", "is not", null)
+      .execute();
+  }
+
+  async restoreDeletedByRepoId(
+    repoId: string,
+    meta: { userId: string; now: string }
+  ): Promise<void> {
+    await SqliteDb.getDB()
+      .updateTable("issues")
+      .set({
+        deleted_at: null,
+        updated_at: meta.now,
+      })
+      .where("stream_id", "in",
+        SqliteDb.getDB()
+          .selectFrom("streams")
+          .select("id")
+          .where("repo_id", "=", repoId)
+          .where("user_id", "=", meta.userId)
+          .where("deleted_at", "is", null)
+      )
+      .where("user_id", "=", meta.userId)
+      .where("deleted_at", "is not", null)
+      .execute();
   }
 
   async listByTodoForDate(

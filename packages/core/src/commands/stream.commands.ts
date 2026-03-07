@@ -1,6 +1,7 @@
 import { randomUUID } from "crypto";
 import type { Stream, StreamVisibility } from "../domain/stream";
 import type { ICommandContext } from "./context";
+import { cacadeSoftDeleteIssuesByStreamId } from "./issue.commands";
 
 /**
  * Create a new stream under a repo
@@ -109,6 +110,60 @@ export async function deleteStream(
     timestamp: now,
     userId: ctx.userId,
     deviceId: ctx.deviceId,
+  });
+
+  await cacadeSoftDeleteIssuesByStreamId(ctx, streamId);
+}
+
+export async function restoreStream(
+  ctx: ICommandContext,
+  streamId: string
+): Promise<void> {
+  const now = ctx.now();
+
+  await ctx.streams.restore(streamId, {
+    userId: ctx.userId,
+    now,
+  });
+
+  await ctx.ops.append({
+    id: randomUUID(),
+    entity: "stream",
+    entityId: streamId,
+    action: "restore",
+    payload: null,
+    timestamp: now,
+    userId: ctx.userId,
+    deviceId: ctx.deviceId,
+  });
+
+}
+
+/**
+ * Cascade delete all streams under a repo (soft delete)
+ */
+
+export async function cascadeDeleteStreams(
+  ctx: ICommandContext,
+  repoId: string,
+): Promise<void> {
+  const now = ctx.now();
+
+  await ctx.streams.cascadeSoftDeleteByRepoId(repoId, {
+    userId: ctx.userId,
+    now,
+  });
+}
+
+export async function cascadeRestoreStreams(
+  ctx: ICommandContext,
+  repoId: string,
+): Promise<void> {
+  const now = ctx.now();
+
+  await ctx.streams.restoreByRepoId(repoId, {
+    userId: ctx.userId,
+    now,
   });
 }
 

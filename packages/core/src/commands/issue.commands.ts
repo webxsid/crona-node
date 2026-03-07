@@ -189,6 +189,82 @@ export async function deleteIssue(
   });
 }
 
+export async function restoreIssue(
+  ctx: ICommandContext,
+  issueId: string
+): Promise<void> {
+  const now = ctx.now();
+
+  await ctx.issues.restoreDeletedById(issueId, {
+    userId: ctx.userId,
+    now,
+  });
+
+  await ctx.ops.append({
+    id: randomUUID(),
+    entity: "issue",
+    entityId: issueId,
+    action: "restore",
+    payload: null,
+    timestamp: now,
+    userId: ctx.userId,
+    deviceId: ctx.deviceId,
+  });
+}
+
+export async function cacadeSoftDeleteIssuesByStreamId(
+  ctx: ICommandContext,
+  streamId: string
+): Promise<void> {
+  const now = ctx.now();
+
+  await ctx.issues.cascadeSoftDeleteByStreamId(streamId, {
+    userId: ctx.userId,
+    now,
+  });
+
+}
+
+export async function cascadeSoftDeleteIssuesByRepoId(
+  ctx: ICommandContext,
+  repoId: string
+): Promise<void> {
+  const now = ctx.now();
+
+  await ctx.issues.cascadeSoftDeleteByRepoId(repoId, {
+    userId: ctx.userId,
+    now,
+  });
+
+}
+
+export async function restoreIssuesByStreamId(
+  ctx: ICommandContext,
+  streamId: string
+): Promise<void> {
+  const now = ctx.now();
+
+  await ctx.issues.restoreDeletedByStreamId(streamId, {
+    userId: ctx.userId,
+    now,
+  });
+
+}
+
+export async function restoreIssuesByRepoId(
+  ctx: ICommandContext,
+  repoId: string
+): Promise<void> {
+  const now = ctx.now();
+
+  await ctx.issues.restoreDeletedByRepoId(repoId, {
+    userId: ctx.userId,
+    now,
+  });
+
+}
+
+
 /**
  * List issues in a stream
  * Read-only

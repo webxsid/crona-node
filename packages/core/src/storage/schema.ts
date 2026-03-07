@@ -73,7 +73,7 @@ export interface OpTable {
   device_id: string;
   entity: OpEntity;
   entity_id: string;
-  action: "create" | "update" | "delete";
+  action: "create" | "update" | "delete" | "restore";
   payload: string;
   timestamp: string;
 }

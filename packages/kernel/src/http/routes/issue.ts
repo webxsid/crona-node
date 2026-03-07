@@ -34,6 +34,12 @@ export class IssueRoutes {
 
       return this.ctx.issues.listByStream(streamId, this.ctx.userId);
     });
+
+    this.app.get("/issues/summary/today", async () => {
+      const plan = await computeDailyIssueSummaryForToday(this.ctx);
+
+      return plan;
+    })
   }
 
   // ---------- Commands ----------
@@ -93,7 +99,7 @@ export class IssueRoutes {
       return issue;
     });
 
-    this.app.put("/issue/:id/todo:clear", async (req: FastifyRequest) => {
+    this.app.put("/issue/:id/todo/clear", async (req: FastifyRequest) => {
       const { id } = req.params as { id: string };
 
       const issue = await clearIssueTodoForDate(this.ctx, id);
@@ -101,10 +107,6 @@ export class IssueRoutes {
       return issue;
     });
 
-    this.app.get("/issues/summary:today", async () => {
-      const plan = await computeDailyIssueSummaryForToday(this.ctx);
 
-      return plan;
-    })
   }
 }
