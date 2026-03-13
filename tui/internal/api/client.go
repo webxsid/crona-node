@@ -1,0 +1,350 @@
+package api
+
+import (
+	"bufio"
+	shareddto "crona/shared/dto"
+	"crona/shared/protocol"
+	sharedtypes "crona/shared/types"
+	"encoding/json"
+	"fmt"
+	"net"
+	"path/filepath"
+	"strings"
+	"sync/atomic"
+	"time"
+)
+
+type Client struct {
+	socketPath string
+	scratchDir string
+	nextID     atomic.Uint64
+}
+
+func NewClient(socketPath, scratchDir string) *Client {
+	return &Client{
+		socketPath: socketPath,
+		scratchDir: scratchDir,
+	}
+}
+
+func (c *Client) call(method string, params, out any) error {
+	conn, err := net.DialTimeout("unix", c.socketPath, 10*time.Second)
+	if err != nil {
+		return err
+	}
+	defer conn.Close()
+	_ = conn.SetDeadline(time.Now().Add(10 * time.Second))
+
+	var rawParams json.RawMessage
+	if params != nil {
+		b, err := json.Marshal(params)
+		if err != nil {
+			return err
+		}
+		rawParams = b
+	}
+
+	id := fmt.Sprintf("req-%d", c.nextID.Add(1))
+	reqBody, err := json.Marshal(protocol.Request{
+		ID:     id,
+		Method: method,
+		Params: rawParams,
+	})
+	if err != nil {
+		return err
+	}
+	if _, err := conn.Write(append(reqBody, '\n')); err != nil {
+		return err
+	}
+
+	var resp protocol.Response
+	if err := json.NewDecoder(bufio.NewReader(conn)).Decode(&resp); err != nil {
+		return err
+	}
+	if resp.Error != nil {
+		return fmt.Errorf("%s: %s", resp.Error.Code, resp.Error.Message)
+	}
+	if out == nil || len(resp.Result) == 0 {
+		return nil
+	}
+	return json.Unmarshal(resp.Result, out)
+}
+
+func (c *Client) mustOK(method string, params any) error {
+	var out shareddto.OKResponse
+	if err := c.call(method, params, &out); err != nil {
+		return err
+	}
+	if !out.OK {
+		return fmt.Errorf("%s failed", method)
+	}
+	return nil
+}
+
+func (c *Client) ListRepos() ([]Repo, error) {
+	var out []Repo
+	return out, c.call(protocol.MethodRepoList, nil, &out)
+}
+
+func (c *Client) CreateRepo(name string) (*Repo, error) {
+	var out Repo
+	return &out, c.call(protocol.MethodRepoCreate, shareddto.CreateRepoRequest{Name: name}, &out)
+}
+
+func (c *Client) ListStreams(repoID int64) ([]Stream, error) {
+	var out []Stream
+	return out, c.call(protocol.MethodStreamList, shareddto.ListStreamsQuery{RepoID: repoID}, &out)
+}
+
+func (c *Client) CreateStream(repoID int64, name string) (*Stream, error) {
+	var out Stream
+	return &out, c.call(protocol.MethodStreamCreate, shareddto.CreateStreamRequest{RepoID: repoID, Name: name}, &out)
+}
+
+func (c *Client) ListIssues(streamID int64) ([]Issue, error) {
+	var out []Issue
+	return out, c.call(protocol.MethodIssueList, shareddto.ListIssuesQuery{StreamID: streamID}, &out)
+}
+
+func (c *Client) ListAllIssues() ([]IssueWithMeta, error) {
+	var out []IssueWithMeta
+	return out, c.call(protocol.MethodIssueListAll, nil, &out)
+}
+
+func (c *Client) CreateIssue(streamID int64, title string, estimateMinutes *int, todoForDate *string) (*Issue, error) {
+	body := shareddto.CreateIssueRequest{
+		StreamID: streamID,
+		Title:    title,
+	}
+	if estimateMinutes != nil {
+		body.EstimateMinutes = estimateMinutes
+	}
+	if todoForDate != nil && strings.TrimSpace(*todoForDate) != "" {
+		trimmed := strings.TrimSpace(*todoForDate)
+		body.TodoForDate = &trimmed
+	}
+	var out Issue
+	return &out, c.call(protocol.MethodIssueCreate, body, &out)
+}
+
+func (c *Client) ListSessionsByIssue(issueID int64) ([]Session, error) {
+	var out []Session
+	return out, c.call(protocol.MethodSessionListByIssue, shareddto.ListSessionsQuery{IssueID: &issueID}, &out)
+}
+
+func (c *Client) ListSessionHistory(limit int) ([]SessionHistoryEntry, error) {
+	var out []SessionHistoryEntry
+	query := shareddto.SessionHistoryQuery{}
+	if limit > 0 {
+		query.Limit = &limit
+	}
+	return out, c.call(protocol.MethodSessionHistory, query, &out)
+}
+
+func (c *Client) GetDailySummary(date string) (*DailyIssueSummary, error) {
+	var out DailyIssueSummary
+	query := shareddto.DailyIssueSummaryQuery{}
+	if strings.TrimSpace(date) != "" {
+		trimmed := strings.TrimSpace(date)
+		query.Date = &trimmed
+	}
+	return &out, c.call(protocol.MethodIssueDailySummary, query, &out)
+}
+
+func (c *Client) ChangeIssueStatus(issueID int64, status string) error {
+	return c.call(protocol.MethodIssueChangeStatus, shareddto.ChangeIssueStatusRequest{
+		ID:     issueID,
+		Status: sharedtypes.IssueStatus(status),
+	}, nil)
+}
+
+func (c *Client) MarkIssueTodoForToday(issueID int64) error {
+	return c.SetIssueTodoDate(issueID, "")
+}
+
+func (c *Client) SetIssueTodoDate(issueID int64, date string) error {
+	body := shareddto.SetIssueTodoRequest{ID: issueID}
+	if strings.TrimSpace(date) != "" {
+		trimmed := strings.TrimSpace(date)
+		body.Date = &trimmed
+	}
+	return c.call(protocol.MethodIssueSetTodo, body, nil)
+}
+
+func (c *Client) ClearIssueTodo(issueID int64) error {
+	return c.call(protocol.MethodIssueClearTodo, shareddto.NumericIDRequest{ID: issueID}, nil)
+}
+
+func (c *Client) GetContext() (*ActiveContext, error) {
+	var out ActiveContext
+	return &out, c.call(protocol.MethodContextGet, nil, &out)
+}
+
+func (c *Client) SwitchRepo(repoID int64) error {
+	return c.call(protocol.MethodContextSwitchRepo, shareddto.SwitchRepoRequest{RepoID: repoID}, nil)
+}
+
+func (c *Client) SwitchStream(streamID int64) error {
+	return c.call(protocol.MethodContextSwitchStream, shareddto.SwitchStreamRequest{StreamID: streamID}, nil)
+}
+
+func (c *Client) SwitchIssue(issueID int64) error {
+	return c.call(protocol.MethodContextSwitchIssue, shareddto.SwitchIssueRequest{IssueID: issueID}, nil)
+}
+
+func (c *Client) SetFullContext(repoID, streamID, issueID int64) error {
+	req := map[string]any{}
+	if repoID != 0 {
+		req["repoId"] = repoID
+	}
+	if streamID != 0 {
+		req["streamId"] = streamID
+	}
+	if issueID != 0 {
+		req["issueId"] = issueID
+	}
+	return c.call(protocol.MethodContextSet, req, nil)
+}
+
+func (c *Client) GetTimerState() (*TimerState, error) {
+	var out TimerState
+	return &out, c.call(protocol.MethodTimerGetState, nil, &out)
+}
+
+func (c *Client) GetHealth() (*Health, error) {
+	var out Health
+	return &out, c.call(protocol.MethodHealthGet, nil, &out)
+}
+
+func (c *Client) GetSettings() (*CoreSettings, error) {
+	var out map[string]CoreSettings
+	if err := c.call(protocol.MethodSettingsGetAll, nil, &out); err != nil {
+		return nil, err
+	}
+	if settings, ok := out["local"]; ok {
+		return &settings, nil
+	}
+	for _, settings := range out {
+		return &settings, nil
+	}
+	return nil, nil
+}
+
+func (c *Client) PatchSetting(key sharedtypes.CoreSettingsKey, value any) error {
+	return c.call(protocol.MethodSettingsPatch, shareddto.PatchCoreSettingRequest{
+		Key:   key,
+		Value: value,
+	}, nil)
+}
+
+func (c *Client) ShutdownKernel() error {
+	return c.mustOK(protocol.MethodKernelShutdown, nil)
+}
+
+func (c *Client) GetKernelInfo() (*KernelInfo, error) {
+	var out KernelInfo
+	return &out, c.call(protocol.MethodKernelInfoGet, nil, &out)
+}
+
+func (c *Client) SeedDevData() error {
+	return c.mustOK(protocol.MethodKernelSeedDev, nil)
+}
+
+func (c *Client) ClearDevData() error {
+	return c.mustOK(protocol.MethodKernelClearDev, nil)
+}
+
+func (c *Client) StartTimer(issueID int64) error {
+	req := shareddto.TimerStartRequest{}
+	if issueID != 0 {
+		req.IssueID = &issueID
+	}
+	return c.call(protocol.MethodTimerStart, req, nil)
+}
+
+func (c *Client) PauseTimer() error {
+	return c.call(protocol.MethodTimerPause, nil, nil)
+}
+
+func (c *Client) ResumeTimer() error {
+	return c.call(protocol.MethodTimerResume, nil, nil)
+}
+
+func (c *Client) EndTimer(commitMessage string) error {
+	body := shareddto.EndSessionRequest{}
+	if commitMessage != "" {
+		body.CommitMessage = &commitMessage
+	}
+	return c.call(protocol.MethodTimerEnd, body, nil)
+}
+
+func (c *Client) StashPush(note string) error {
+	body := shareddto.CreateStashRequest{}
+	if note != "" {
+		body.StashNote = &note
+	}
+	return c.call(protocol.MethodStashPush, body, nil)
+}
+
+func (c *Client) ListStashes() ([]Stash, error) {
+	var out []Stash
+	return out, c.call(protocol.MethodStashList, nil, &out)
+}
+
+func (c *Client) ApplyStash(id string) error {
+	return c.mustOK(protocol.MethodStashApply, shareddto.StashIDRequest{ID: id})
+}
+
+func (c *Client) ListScratchpads() ([]ScratchPad, error) {
+	var out []ScratchPad
+	return out, c.call(protocol.MethodScratchpadList, shareddto.ListScratchpadsQuery{}, &out)
+}
+
+func (c *Client) RegisterScratchpad(id, name, path string) error {
+	pinned := false
+	lastOpenedAt := time.Now().UTC().Format(time.RFC3339)
+	body := shareddto.RegisterScratchpadRequest{
+		ID:           &id,
+		Name:         name,
+		Path:         path,
+		Pinned:       &pinned,
+		LastOpenedAt: &lastOpenedAt,
+	}
+	return c.call(protocol.MethodScratchpadRegister, body, nil)
+}
+
+func (c *Client) ReadScratchpad(id string) (string, string, error) {
+	var out sharedtypes.ScratchPadRead
+	if err := c.call(protocol.MethodScratchpadRead, shareddto.ScratchpadIDRequest{ID: id}, &out); err != nil {
+		return "", "", err
+	}
+	path := ""
+	if out.Meta != nil {
+		relativePath := out.Meta.Path
+		if !strings.HasSuffix(relativePath, ".md") {
+			relativePath += ".md"
+		}
+		if c.scratchDir != "" {
+			path = filepath.Join(c.scratchDir, relativePath)
+		} else {
+			path = relativePath
+		}
+	}
+	content := ""
+	if out.Content != nil {
+		content = *out.Content
+	}
+	return path, content, nil
+}
+
+func (c *Client) DeleteScratchpad(id string) error {
+	return c.mustOK(protocol.MethodScratchpadDelete, shareddto.ScratchpadIDRequest{ID: id})
+}
+
+func (c *Client) ListOps(limit int) ([]Op, error) {
+	var out []Op
+	if limit <= 0 {
+		limit = 50
+	}
+	return out, c.call(protocol.MethodOpsLatest, shareddto.ListLatestOpsQuery{Limit: &limit}, &out)
+}

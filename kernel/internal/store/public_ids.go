@@ -1,0 +1,152 @@
+package store
+
+import (
+	"context"
+	"database/sql"
+	"errors"
+	"fmt"
+	"strings"
+
+	"github.com/uptrace/bun"
+)
+
+func ensurePublicIDColumn(ctx context.Context, db *bun.DB, table string) error {
+	rows, err := db.QueryContext(ctx, fmt.Sprintf("PRAGMA table_info('%s')", table))
+	if err != nil {
+		return err
+	}
+	defer rows.Close()
+
+	var (
+		cid       int
+		name      string
+		typ       string
+		notnull   int
+		dfltValue sql.NullString
+		pk        int
+	)
+	for rows.Next() {
+		if err := rows.Scan(&cid, &name, &typ, &notnull, &dfltValue, &pk); err != nil {
+			return err
+		}
+		if strings.EqualFold(name, "public_id") {
+			return nil
+		}
+	}
+	if err := rows.Err(); err != nil {
+		return err
+	}
+
+	_, err = db.ExecContext(ctx, fmt.Sprintf("ALTER TABLE %s ADD COLUMN public_id integer", table))
+	return err
+}
+
+func backfillPublicIDs(ctx context.Context, db *bun.DB, table string) error {
+	type row struct {
+		InternalID string `bun:"id"`
+	}
+
+	var rows []row
+	if err := db.NewSelect().
+		TableExpr(table).
+		ColumnExpr("id").
+		Where("public_id IS NULL OR public_id = 0").
+		OrderExpr("created_at ASC, id ASC").
+		Scan(ctx, &rows); err != nil {
+		return err
+	}
+	if len(rows) == 0 {
+		return nil
+	}
+
+	var maxID sql.NullInt64
+	if err := db.NewSelect().
+		TableExpr(table).
+		ColumnExpr("MAX(public_id)").
+		Scan(ctx, &maxID); err != nil {
+		return err
+	}
+	next := int64(1)
+	if maxID.Valid && maxID.Int64 >= next {
+		next = maxID.Int64 + 1
+	}
+
+	for _, row := range rows {
+		if _, err := db.ExecContext(ctx, fmt.Sprintf("UPDATE %s SET public_id = ? WHERE id = ?", table), next, row.InternalID); err != nil {
+			return err
+		}
+		next++
+	}
+	return nil
+}
+
+func nextPublicID(ctx context.Context, db *bun.DB, table string) (int64, error) {
+	var maxID sql.NullInt64
+	if err := db.NewSelect().
+		TableExpr(table).
+		ColumnExpr("MAX(public_id)").
+		Scan(ctx, &maxID); err != nil {
+		return 0, err
+	}
+	if !maxID.Valid {
+		return 1, nil
+	}
+	return maxID.Int64 + 1, nil
+}
+
+func resolveRepoInternalID(ctx context.Context, db *bun.DB, repoID int64, userID string) (string, error) {
+	var internalID string
+	err := db.NewSelect().
+		TableExpr("repos").
+		ColumnExpr("id").
+		Where("public_id = ?", repoID).
+		Where("user_id = ?", userID).
+		Where("deleted_at IS NULL").
+		Limit(1).
+		Scan(ctx, &internalID)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return "", nil
+		}
+		return "", err
+	}
+	return internalID, nil
+}
+
+func resolveStreamInternalID(ctx context.Context, db *bun.DB, streamID int64, userID string) (string, error) {
+	var internalID string
+	err := db.NewSelect().
+		TableExpr("streams").
+		ColumnExpr("id").
+		Where("public_id = ?", streamID).
+		Where("user_id = ?", userID).
+		Where("deleted_at IS NULL").
+		Limit(1).
+		Scan(ctx, &internalID)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return "", nil
+		}
+		return "", err
+	}
+	return internalID, nil
+}
+
+func resolveIssueInternalID(ctx context.Context, db *bun.DB, issueID int64, userID string) (string, error) {
+	var internalID string
+	err := db.NewSelect().
+		TableExpr("issues").
+		ColumnExpr("id").
+		Where("public_id = ?", issueID).
+		Where("user_id = ?", userID).
+		Where("deleted_at IS NULL").
+		Limit(1).
+		Scan(ctx, &internalID)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return "", nil
+		}
+		return "", err
+	}
+	return internalID, nil
+}

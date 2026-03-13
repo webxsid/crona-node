@@ -2,10 +2,11 @@
 
 All notable changes to **Crona** are documented here.
 
-## [Unreleased] - 2026-03-09
+## [Unreleased] - 2026-03-13
 
 ### Added
-- Go TUI workspace with Default, Meta, Scratchpads, Ops, Session, and Daily Dashboard views.
+- Go monorepo workspace with `kernel`, `tui`, `cli`, and `shared`.
+- Go TUI workspace with Default, Meta, Session History, Active Session, Scratchpads, Ops, Settings, and Daily Dashboard views.
 - Session-focused workflow from issue panes with auto-context checkout, session lock, stash/end prompts, and scratchpad access during active sessions.
 - Daily Dashboard with date navigation, planned-task list, worked-vs-estimate stats, and resolved-task progress.
 - UI-local filtering across repos, streams, issues, scratchpads, and ops.
@@ -13,8 +14,14 @@ All notable changes to **Crona** are documented here.
 - Optional due date on issue creation, with a calendar picker in the Go TUI dialogs.
 - Issue due-date picker action from issue tables/lists, backed by a date-aware todo API.
 - Kernel shutdown hotkey from the Go TUI.
+- Idle-only stash dialog in the TUI with stash pop/apply.
+- Root `.env`-driven runtime mode plus dev-only seed / clear workflows.
+- Root `Makefile` and helper scripts for workspace tasks and dev data management.
+- Go end-to-end tests under `kernel/e2e`.
 
 ### Changed
+- Repo, stream, and issue public IDs now use numeric IDs.
+- The entire local runtime path moved from Node/HTTP to Go/Unix socket IPC.
 - Scratchpad reading now stays confined to its pane instead of taking over the full screen.
 - Scratchpad editing now opens the real file under the kernel scratch directory, with `.md` fallback when metadata paths omit the extension.
 - Scratchpad previews render markdown again after fixing the reload path.
@@ -26,6 +33,7 @@ All notable changes to **Crona** are documented here.
 - Header was simplified back to a stable context row plus an active-session row.
 - Issue lifecycle actions now follow the core transition rules, with one cycle key and explicit abandon behavior.
 - Session progress uses cumulative worked time for the active issue based on kernel session history.
+- Focus-session start/end now drive issue status transitions through the kernel timer flow.
 - Status colors are applied consistently across issue lists and dashboard indicators.
 
 ### Fixed
@@ -36,14 +44,18 @@ All notable changes to **Crona** are documented here.
 - Go client ops loading now uses the kernel's latest-ops endpoint.
 - Todo-for-date clearing now actually removes the stored date.
 - Issue completion and abandonment timestamps are persisted for dashboard reporting.
+- Commit-message dialogs no longer treat typed confirmation characters as submit/cancel.
+- Focus-session start no longer races separate issue-status and timer writes in the TUI.
 
 ### API / Core
-- `POST /issue` accepts `todoForDate` during issue creation.
-- `PUT /issue/:id/todo` accepts an explicit date payload instead of only computing today.
-- Added daily summary by arbitrary date in the kernel/core issue summary flow.
-- Added kernel shutdown HTTP route for TUI-triggered shutdown.
+- Added shared Go contracts for domain types, DTOs, and Unix socket IPC envelopes.
+- Added daily summary by arbitrary date in the kernel issue summary flow.
+- Added kernel shutdown IPC support for TUI-triggered shutdown.
+- Added session history and stash IPC consumption in the Go TUI.
+- Added `kernel.dev.seed` and `kernel.dev.clear` dev-only IPC methods guarded by `CRONA_ENV=Dev`.
+- Migrated kernel storage, commands, timer, stash, scratchpad, and settings flows from TypeScript to Go.
+- Switched the TUI from HTTP/SSE to Unix socket IPC.
 
 ### Verification
-- `go build ./...` passes for `packages/tui-go`.
-- `pnpm --filter @crona/core build` passes.
-- `pnpm exec tsc -p packages/kernel/tsconfig.json --noEmit` passes.
+- `go build ./...` passes for `shared`, `kernel`, `tui`, and `cli`.
+- `go test ./...` passes for `kernel`.

@@ -1,0 +1,394 @@
+package commands
+
+import (
+	"context"
+	"errors"
+	"fmt"
+	"strings"
+
+	"crona/kernel/internal/core"
+	"crona/kernel/internal/store"
+
+	"github.com/google/uuid"
+
+	sharedtypes "crona/shared/types"
+)
+
+func CreateIssue(ctx context.Context, c *core.Context, input struct {
+	StreamID        int64
+	Title           string
+	EstimateMinutes *int
+	Notes           *string
+	TodoForDate     *string
+}) (sharedtypes.Issue, error) {
+	if strings.TrimSpace(input.Title) == "" {
+		return sharedtypes.Issue{}, errors.New("issue title cannot be empty")
+	}
+	if input.EstimateMinutes != nil && *input.EstimateMinutes < 0 {
+		return sharedtypes.Issue{}, errors.New("estimate must be >= 0")
+	}
+	nextID, err := c.Issues.NextID(ctx)
+	if err != nil {
+		return sharedtypes.Issue{}, err
+	}
+	issue := sharedtypes.Issue{
+		ID:              nextID,
+		StreamID:        input.StreamID,
+		Title:           strings.TrimSpace(input.Title),
+		Status:          sharedtypes.IssueStatusTodo,
+		EstimateMinutes: input.EstimateMinutes,
+		Notes:           input.Notes,
+		TodoForDate:     input.TodoForDate,
+	}
+	now := c.Now()
+	created, err := c.Issues.Create(ctx, issue, c.UserID, now)
+	if err != nil {
+		return sharedtypes.Issue{}, err
+	}
+	if err := c.Ops.Append(ctx, sharedtypes.Op{
+		ID:        uuid.NewString(),
+		Entity:    sharedtypes.OpEntityIssue,
+		EntityID:  fmt.Sprintf("%d", created.ID),
+		Action:    sharedtypes.OpActionCreate,
+		Payload:   created,
+		Timestamp: now,
+		UserID:    c.UserID,
+		DeviceID:  c.DeviceID,
+	}); err != nil {
+		return sharedtypes.Issue{}, err
+	}
+	emit(c, sharedtypes.EventTypeIssueCreated, created)
+	return created, nil
+}
+
+func UpdateIssue(ctx context.Context, c *core.Context, issueID int64, updates struct {
+	Title           store.Patch[string]
+	EstimateMinutes store.Patch[int]
+	Notes           store.Patch[string]
+}) (*sharedtypes.Issue, error) {
+	if updates.Title.Set && updates.Title.Value != nil && strings.TrimSpace(*updates.Title.Value) == "" {
+		return nil, errors.New("issue title cannot be empty")
+	}
+	if updates.Title.Set && updates.Title.Value != nil {
+		trimmed := strings.TrimSpace(*updates.Title.Value)
+		updates.Title.Value = &trimmed
+	}
+	if updates.EstimateMinutes.Set && updates.EstimateMinutes.Value != nil && *updates.EstimateMinutes.Value < 0 {
+		return nil, errors.New("estimate must be >= 0")
+	}
+	now := c.Now()
+	updated, err := c.Issues.Update(ctx, issueID, c.UserID, now, struct {
+		Title           store.Patch[string]
+		Status          store.Patch[sharedtypes.IssueStatus]
+		EstimateMinutes store.Patch[int]
+		Notes           store.Patch[string]
+		TodoForDate     store.Patch[string]
+		CompletedAt     store.Patch[string]
+		AbandonedAt     store.Patch[string]
+	}{
+		Title:           updates.Title,
+		EstimateMinutes: updates.EstimateMinutes,
+		Notes:           updates.Notes,
+	})
+	if err != nil {
+		return nil, err
+	}
+	if err := c.Ops.Append(ctx, sharedtypes.Op{
+		ID:        uuid.NewString(),
+		Entity:    sharedtypes.OpEntityIssue,
+		EntityID:  fmt.Sprintf("%d", issueID),
+		Action:    sharedtypes.OpActionUpdate,
+		Payload:   updates,
+		Timestamp: now,
+		UserID:    c.UserID,
+		DeviceID:  c.DeviceID,
+	}); err != nil {
+		return nil, err
+	}
+	if updated != nil {
+		emit(c, sharedtypes.EventTypeIssueUpdated, updated)
+	}
+	return updated, nil
+}
+
+func ChangeIssueStatus(ctx context.Context, c *core.Context, issueID int64, nextStatus sharedtypes.IssueStatus) (*sharedtypes.Issue, error) {
+	issue, err := c.Issues.GetByID(ctx, issueID, c.UserID)
+	if err != nil {
+		return nil, err
+	}
+	if issue == nil {
+		return nil, errors.New("issue not found")
+	}
+	allowed := map[sharedtypes.IssueStatus][]sharedtypes.IssueStatus{
+		sharedtypes.IssueStatusTodo:      {sharedtypes.IssueStatusActive, sharedtypes.IssueStatusAbandoned},
+		sharedtypes.IssueStatusActive:    {sharedtypes.IssueStatusDone, sharedtypes.IssueStatusTodo, sharedtypes.IssueStatusAbandoned},
+		sharedtypes.IssueStatusDone:      {sharedtypes.IssueStatusTodo},
+		sharedtypes.IssueStatusAbandoned: {sharedtypes.IssueStatusTodo},
+	}
+	valid := false
+	for _, candidate := range allowed[issue.Status] {
+		if candidate == nextStatus {
+			valid = true
+			break
+		}
+	}
+	if !valid {
+		return nil, errors.New("invalid status transition")
+	}
+
+	now := c.Now()
+	var completedAt *string
+	var abandonedAt *string
+	switch nextStatus {
+	case sharedtypes.IssueStatusDone:
+		completedAt = &now
+	case sharedtypes.IssueStatusAbandoned:
+		abandonedAt = &now
+	}
+
+	updated, err := c.Issues.Update(ctx, issueID, c.UserID, now, struct {
+		Title           store.Patch[string]
+		Status          store.Patch[sharedtypes.IssueStatus]
+		EstimateMinutes store.Patch[int]
+		Notes           store.Patch[string]
+		TodoForDate     store.Patch[string]
+		CompletedAt     store.Patch[string]
+		AbandonedAt     store.Patch[string]
+	}{
+		Status:      store.Patch[sharedtypes.IssueStatus]{Set: true, Value: &nextStatus},
+		CompletedAt: store.Patch[string]{Set: true, Value: completedAt},
+		AbandonedAt: store.Patch[string]{Set: true, Value: abandonedAt},
+	})
+	if err != nil {
+		return nil, err
+	}
+	if err := c.Ops.Append(ctx, sharedtypes.Op{
+		ID:        uuid.NewString(),
+		Entity:    sharedtypes.OpEntityIssue,
+		EntityID:  fmt.Sprintf("%d", issueID),
+		Action:    sharedtypes.OpActionUpdate,
+		Payload:   map[string]any{"status": nextStatus},
+		Timestamp: now,
+		UserID:    c.UserID,
+		DeviceID:  c.DeviceID,
+	}); err != nil {
+		return nil, err
+	}
+	if updated != nil {
+		emit(c, sharedtypes.EventTypeIssueUpdated, updated)
+	}
+	return updated, nil
+}
+
+func DeleteIssue(ctx context.Context, c *core.Context, issueID int64) error {
+	now := c.Now()
+	if err := c.Issues.SoftDelete(ctx, issueID, c.UserID, now); err != nil {
+		return err
+	}
+	if err := c.Ops.Append(ctx, sharedtypes.Op{
+		ID:        uuid.NewString(),
+		Entity:    sharedtypes.OpEntityIssue,
+		EntityID:  fmt.Sprintf("%d", issueID),
+		Action:    sharedtypes.OpActionDelete,
+		Payload:   nil,
+		Timestamp: now,
+		UserID:    c.UserID,
+		DeviceID:  c.DeviceID,
+	}); err != nil {
+		return err
+	}
+	emit(c, sharedtypes.EventTypeIssueDeleted, sharedtypes.IDEventPayload{ID: issueID})
+	return nil
+}
+
+func RestoreIssue(ctx context.Context, c *core.Context, issueID int64) error {
+	now := c.Now()
+	if err := c.Issues.RestoreDeletedByID(ctx, issueID, c.UserID, now); err != nil {
+		return err
+	}
+	return c.Ops.Append(ctx, sharedtypes.Op{
+		ID:        uuid.NewString(),
+		Entity:    sharedtypes.OpEntityIssue,
+		EntityID:  fmt.Sprintf("%d", issueID),
+		Action:    sharedtypes.OpActionRestore,
+		Payload:   nil,
+		Timestamp: now,
+		UserID:    c.UserID,
+		DeviceID:  c.DeviceID,
+	})
+}
+
+func ListIssuesByStream(ctx context.Context, c *core.Context, streamID int64) ([]sharedtypes.Issue, error) {
+	return c.Issues.ListByStream(ctx, streamID, c.UserID)
+}
+
+func ListAllIssues(ctx context.Context, c *core.Context) ([]sharedtypes.IssueWithMeta, error) {
+	return c.Issues.ListAll(ctx, c.UserID)
+}
+
+func MarkIssueTodoForDate(ctx context.Context, c *core.Context, issueID int64, todoForDate string) (*sharedtypes.Issue, error) {
+	now := c.Now()
+	updated, err := c.Issues.Update(ctx, issueID, c.UserID, now, struct {
+		Title           store.Patch[string]
+		Status          store.Patch[sharedtypes.IssueStatus]
+		EstimateMinutes store.Patch[int]
+		Notes           store.Patch[string]
+		TodoForDate     store.Patch[string]
+		CompletedAt     store.Patch[string]
+		AbandonedAt     store.Patch[string]
+	}{
+		TodoForDate: store.Patch[string]{Set: true, Value: &todoForDate},
+	})
+	if err != nil {
+		return nil, err
+	}
+	if err := c.Ops.Append(ctx, sharedtypes.Op{
+		ID:        uuid.NewString(),
+		Entity:    sharedtypes.OpEntityIssue,
+		EntityID:  fmt.Sprintf("%d", issueID),
+		Action:    sharedtypes.OpActionUpdate,
+		Payload:   map[string]any{"todoForDate": todoForDate},
+		Timestamp: now,
+		UserID:    c.UserID,
+		DeviceID:  c.DeviceID,
+	}); err != nil {
+		return nil, err
+	}
+	if updated != nil {
+		emit(c, sharedtypes.EventTypeIssueUpdated, updated)
+	}
+	return updated, nil
+}
+
+func MarkIssueTodoForToday(ctx context.Context, c *core.Context, issueID int64) (*sharedtypes.Issue, error) {
+	today := strings.Split(c.Now(), "T")[0]
+	if today == "" {
+		return nil, errors.New("invalid date")
+	}
+	return MarkIssueTodoForDate(ctx, c, issueID, today)
+}
+
+func ClearIssueTodoForDate(ctx context.Context, c *core.Context, issueID int64) (*sharedtypes.Issue, error) {
+	now := c.Now()
+	updated, err := c.Issues.Update(ctx, issueID, c.UserID, now, struct {
+		Title           store.Patch[string]
+		Status          store.Patch[sharedtypes.IssueStatus]
+		EstimateMinutes store.Patch[int]
+		Notes           store.Patch[string]
+		TodoForDate     store.Patch[string]
+		CompletedAt     store.Patch[string]
+		AbandonedAt     store.Patch[string]
+	}{
+		TodoForDate: store.Patch[string]{Set: true, Value: nil},
+	})
+	if err != nil {
+		return nil, err
+	}
+	if err := c.Ops.Append(ctx, sharedtypes.Op{
+		ID:        uuid.NewString(),
+		Entity:    sharedtypes.OpEntityIssue,
+		EntityID:  fmt.Sprintf("%d", issueID),
+		Action:    sharedtypes.OpActionUpdate,
+		Payload:   map[string]any{"todoForDate": nil},
+		Timestamp: now,
+		UserID:    c.UserID,
+		DeviceID:  c.DeviceID,
+	}); err != nil {
+		return nil, err
+	}
+	if updated != nil {
+		updated.TodoForDate = nil
+		emit(c, sharedtypes.EventTypeIssueUpdated, updated)
+	}
+	return updated, nil
+}
+
+func ClearTodayTodos(ctx context.Context, c *core.Context) error {
+	today := strings.Split(c.Now(), "T")[0]
+	if today == "" {
+		return errors.New("invalid date")
+	}
+	issues, err := c.Issues.ListByTodoForDate(ctx, today, c.UserID)
+	if err != nil {
+		return err
+	}
+	for _, issue := range issues {
+		if _, err := ClearIssueTodoForDate(ctx, c, issue.ID); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func ComputeDailyIssueSummaryForDate(ctx context.Context, c *core.Context, date string) (sharedtypes.DailyIssueSummary, error) {
+	if date == "" {
+		return sharedtypes.DailyIssueSummary{}, errors.New("invalid date")
+	}
+	issues, err := c.Issues.ListByTodoForDate(ctx, date, c.UserID)
+	if err != nil {
+		return sharedtypes.DailyIssueSummary{}, err
+	}
+	totalEstimatedMinutes := 0
+	completedIssues := 0
+	abandonedIssues := 0
+	issueIDs := map[int64]bool{}
+	for _, issue := range issues {
+		totalEstimatedMinutes += derefIssueEstimate(issue.EstimateMinutes)
+		if issue.CompletedAt != nil && strings.HasPrefix(*issue.CompletedAt, date) {
+			completedIssues++
+		}
+		if issue.AbandonedAt != nil && strings.HasPrefix(*issue.AbandonedAt, date) {
+			abandonedIssues++
+		}
+		issueIDs[issue.ID] = true
+	}
+	dayStart := date + "T00:00:00.000Z"
+	dayEnd := date + "T23:59:59.999Z"
+	endedSessions, err := c.Sessions.ListEnded(ctx, struct {
+		UserID   string
+		RepoID   *int64
+		StreamID *int64
+		IssueID  *int64
+		Since    *string
+		Until    *string
+		Limit    *int
+		Offset   *int
+	}{
+		UserID: c.UserID,
+		Since:  &dayStart,
+		Until:  &dayEnd,
+	})
+	if err != nil {
+		return sharedtypes.DailyIssueSummary{}, err
+	}
+	workedSeconds := 0
+	for _, session := range endedSessions {
+		if issueIDs[session.IssueID] {
+			workedSeconds += derefIssueEstimate(session.DurationSeconds)
+		}
+	}
+	return sharedtypes.DailyIssueSummary{
+		Date:                  date,
+		TotalIssues:           len(issues),
+		Issues:                issues,
+		TotalEstimatedMinutes: totalEstimatedMinutes,
+		CompletedIssues:       completedIssues,
+		AbandonedIssues:       abandonedIssues,
+		WorkedSeconds:         workedSeconds,
+	}, nil
+}
+
+func ComputeDailyIssueSummaryForToday(ctx context.Context, c *core.Context) (sharedtypes.DailyIssueSummary, error) {
+	today := strings.Split(c.Now(), "T")[0]
+	if today == "" {
+		return sharedtypes.DailyIssueSummary{}, errors.New("invalid date")
+	}
+	return ComputeDailyIssueSummaryForDate(ctx, c, today)
+}
+
+func derefIssueEstimate(value *int) int {
+	if value == nil {
+		return 0
+	}
+	return *value
+}

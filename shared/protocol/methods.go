@@ -1,0 +1,83 @@
+package protocol
+
+// Canonical kernel RPC methods for the Unix socket transport.
+// These map directly to the current HTTP contract during migration.
+
+const (
+	MethodEventsSubscribe = "events.subscribe"
+
+	MethodHealthGet = "health.get"
+
+	MethodKernelInfoGet  = "kernel.info.get"
+	MethodKernelShutdown = "kernel.shutdown"
+	MethodKernelRestart  = "kernel.restart"
+	MethodKernelSeedDev  = "kernel.dev.seed"
+	MethodKernelClearDev = "kernel.dev.clear"
+
+	MethodRepoList   = "repo.list"
+	MethodRepoCreate = "repo.create"
+	MethodRepoUpdate = "repo.update"
+	MethodRepoDelete = "repo.delete"
+
+	MethodStreamList   = "stream.list"
+	MethodStreamCreate = "stream.create"
+	MethodStreamUpdate = "stream.update"
+	MethodStreamDelete = "stream.delete"
+
+	MethodIssueList         = "issue.list"
+	MethodIssueListAll      = "issue.list_all"
+	MethodIssueCreate       = "issue.create"
+	MethodIssueUpdate       = "issue.update"
+	MethodIssueDelete       = "issue.delete"
+	MethodIssueChangeStatus = "issue.change_status"
+	MethodIssueSetTodo      = "issue.set_todo"
+	MethodIssueClearTodo    = "issue.clear_todo"
+	MethodIssueDailySummary = "issue.daily_summary"
+	MethodIssueTodaySummary = "issue.today_summary"
+
+	MethodSessionListByIssue = "session.list_by_issue"
+	MethodSessionGet         = "session.get"
+	MethodSessionGetActive   = "session.get_active"
+	MethodSessionStart       = "session.start"
+	MethodSessionPause       = "session.pause"
+	MethodSessionResume      = "session.resume"
+	MethodSessionEnd         = "session.end"
+	MethodSessionAmendNote   = "session.amend_note"
+	MethodSessionHistory     = "session.history"
+
+	MethodTimerGetState = "timer.get_state"
+	MethodTimerStart    = "timer.start"
+	MethodTimerPause    = "timer.pause"
+	MethodTimerResume   = "timer.resume"
+	MethodTimerEnd      = "timer.end"
+
+	MethodContextGet          = "context.get"
+	MethodContextSet          = "context.set"
+	MethodContextSwitchRepo   = "context.switch_repo"
+	MethodContextSwitchStream = "context.switch_stream"
+	MethodContextSwitchIssue  = "context.switch_issue"
+	MethodContextClearIssue   = "context.clear_issue"
+	MethodContextClear        = "context.clear"
+
+	MethodSettingsGetAll = "settings.get_all"
+	MethodSettingsGet    = "settings.get"
+	MethodSettingsPatch  = "settings.patch"
+	MethodSettingsPut    = "settings.put"
+
+	MethodStashList  = "stash.list"
+	MethodStashGet   = "stash.get"
+	MethodStashPush  = "stash.push"
+	MethodStashApply = "stash.apply"
+	MethodStashDrop  = "stash.drop"
+
+	MethodScratchpadList     = "scratchpad.list"
+	MethodScratchpadRegister = "scratchpad.register"
+	MethodScratchpadGetMeta  = "scratchpad.get_meta"
+	MethodScratchpadRead     = "scratchpad.read"
+	MethodScratchpadPin      = "scratchpad.pin"
+	MethodScratchpadDelete   = "scratchpad.delete"
+
+	MethodOpsList   = "ops.list"
+	MethodOpsLatest = "ops.latest"
+	MethodOpsSince  = "ops.since"
+)

@@ -1,34 +1,26 @@
-# Crona Node
+# Crona
 
 **Crona** is a local-first, developer-centric work tracking system that blends ideas from Git, Pomodoro timers, and task managers into a single, opinionated workflow.
 
-This repository contains the **Crona Node monorepo**, which powers the Crona kernel, core logic, and terminal UI.
-
-> Crona is not a to-do app.  
-> It is a **personal work kernel** that makes your work structure explicit, measurable, and reviewable.
-
----
+This repository is a Go monorepo containing the Crona kernel, shared contracts, terminal UI, and future CLI.
 
 ## Repository Structure
-```md
+
+```text
 crona-node/
-├─ packages/
-│  ├─ core/        # Domain logic, commands, persistence, events
-│  ├─ kernel/      # Local kernel process + HTTP/SSE APIs
-│  └─ tui-go/      # Terminal UI (Bubble Tea / Go)
-│
-├─ pnpm-workspace.yaml
-├─ package.json
+├─ Makefile  # Project metadata and common tasks
+├─ kernel/   # Local daemon: storage, commands, timer, IPC
+├─ tui/      # Terminal UI (Bubble Tea)
+├─ cli/      # Future CLI
+├─ shared/   # DTOs, types, protocol envelopes
+├─ go.work
 └─ README.md
 ```
 
----
-
 ## Core Concepts
 
-Crona models work the way developers actually think about it.
-
 ### Repository
+
 A high-level bucket for work.
 
 Examples:
@@ -37,6 +29,7 @@ Examples:
 - Research
 
 ### Stream
+
 A long-lived subdivision inside a repository.
 
 Examples:
@@ -44,183 +37,144 @@ Examples:
 - backend
 - experiments
 
-Think: **personal Git branches**, not ephemeral tasks.
-
 ### Issue
+
 The smallest unit of intentional work.
 
 Each issue can have:
 - title
 - estimate
 - notes
-- status (todo, active, done, abandoned)
+- status (`todo`, `active`, `done`, `abandoned`)
 
 ### Session
+
 A focused work interval tied to an issue.
 
 Sessions:
-- are started/stopped via the timer
+- are started and stopped via the timer
 - contain one or more segments
-- end with a **commit-style message**
+- end with a commit-style message
 
 ### Session Segments
+
 A session is composed of segments:
 - `work`
 - `short_break`
 - `long_break`
 - `rest`
 
-Segments are authoritative for timing and boundaries.
-
 ### Timer
-The timer is **derived state**, not stored state.
+
+The timer is derived state, not stored state.
 
 It:
-- starts/stops sessions
+- starts and stops sessions
 - transitions segments
 - enforces Pomodoro-style boundaries
 - emits events for UIs to subscribe to
 
 ### Stash
+
 A stash suspends your current context and timer state.
 
-Similar to `git stash`:
-- captures active context
-- optionally snapshots timer state
-- can be applied or dropped later
+It captures:
+- active context
+- optional timer state snapshot
 
 ### Active Context
-The current `{ repo → stream → issue }` selection.
-Shared across kernel clients.
+
+The current `{ repo -> stream -> issue }` selection, shared across kernel clients.
 
 ### Scratchpads
-Scratchpads are **filesystem-backed notes**, not scoped metadata.
+
+Scratchpads are filesystem-backed notes, not scoped metadata.
 
 - Arbitrary files
 - Multiple buffers
-- Variable paths supported:
-  - `[[date]]`
-  - `[[time]]`
-  - `[[datetime]]`
-  - `[[timestamp]]`
-  - `[[random]]`
+- Variable path templates
 
 Example:
 
-```md
+```text
 notes/[[date]]-daily.md
 ```
 
----
+## Components
 
-## Packages
+### `kernel`
 
-### `@crona/core`
-
-Contains:
-- domain models
-- SQLite schema (via Kysely)
-- commands (repo, stream, issue, session, stash, scratchpad)
-- timer logic and boundaries
-- event bus
-
-No HTTP. No UI. Pure logic.
-
----
-
-### `@crona/kernel`
-
-A **local kernel process** that:
-- owns the database
-- exposes HTTP + SSE APIs
-- manages authentication
+A local kernel process that:
+- owns the SQLite database
+- exposes Unix socket IPC
 - emits real-time events
 - auto-starts when needed
 
-Endpoints include:
-- `/repos`, `/streams`, `/issues`
-- `/timer/*`
-- `/context`
-- `/stash`
-- `/scratchpads`
-- `/events` (SSE)
+### `tui`
 
-The kernel is **single-user, local-first**, and meant to be trusted.
+A Bubble Tea terminal UI with:
+- kernel auto-launch and discovery
+- real-time updates via Unix socket events
+- contextual views for planning, tracking, scratchpads, ops, and settings
 
----
+### `shared`
 
-### `@crona/tui-go`
-
-A Bubble Tea-based terminal UI inspired by tools like:
-- lazygit
-- vim
-- tmux
-
-Features:
-- persistent terminal takeover
-- kernel auto-launch & discovery
-- real-time updates via SSE
-- contextual views (pre-session vs active session)
-- future command palette + editor integration
-
----
+Shared types, request DTOs, and IPC envelopes used by the kernel, TUI, and future CLI.
 
 ## Development
 
 ### Prerequisites
-- Node.js ≥ 20
-- pnpm ≥ 10
 
-### Install
+- Go 1.26+
+- `make` for the root task shortcuts
 
-```bash
-  pnpm install
-```
+### Environment
 
-
-### Build all packages
+The root [`/.env`](/Users/sm2101/Projects/crona-node/.env) file controls the local runtime mode.
 
 ```bash
-  pnpm -r dev
+CRONA_ENV=Prod
 ```
 
-### Run Kernel (Dev)
+Set it to `Dev` to enable developer-only seed and clear helpers in the kernel and TUI.
+
+### Project Tasks
+
+The root [`Makefile`](/Users/sm2101/Projects/crona-node/Makefile) replaces the old JS `package.json` role for shared scripts and basic project metadata.
 
 ```bash
-pnpm --filter @crona/kernel dev
+make help
+make build
+make test
+make seed-dev
+make clear-dev
 ```
 
-### Run TUI (Dev)
+### Run Kernel
 
 ```bash
-cd packages/tui-go && go run .
+make run-kernel
 ```
 
-The TUI will automatically start the kernel if it is not running.
-
-⸻
-
-## Testing
-
-Crona uses end-to-end tests extensively to validate real behavior.
-
-Tests cover:
-- repos / streams / issues
-- timer lifecycle
-- session boundaries
-- stash behavior
-- scratchpads
-- kernel startup & isolation
-
-### Running tests
+### Run TUI
 
 ```bash
-pnpm --filter @crona/kernel-e2e test:<module>
+make run-tui
 ```
 
-> refer to the test/package.json for different available modules
+The TUI will auto-start the kernel if `crona-kernel` is on your `PATH`.
+When `CRONA_ENV=Dev`, the TUI exposes global hotkeys for developer data management:
+- `f6` seeds sample data
+- `f7` clears all local data
 
-Design Principles
+### Run Tests
+
+```bash
+make test
+```
+
+## Design Principles
+
 - Local-first
 - Authoritative data over derived state
 - Everything is replayable
@@ -228,26 +182,19 @@ Design Principles
 - UIs are clients, not controllers
 - Git-like mental model
 
-⸻
-
 ## Status
 
 Crona is under active development.
 
 Current focus:
-- TUI layout & navigation
+- TUI layout and navigation
 - command palette
 - exportable work logs
 - daily planning workflows
 
-⸻
-
 ## Philosophy
 
-Your work already has structure.
-Crona just makes it explicit.
-
-⸻
+Your work already has structure. Crona just makes it explicit.
 
 [License](LICENSE.md)
 > Crona is an opinionated, experimental project. The MIT license allows reuse, but the architecture and APIs may change without notice.
