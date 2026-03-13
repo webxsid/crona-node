@@ -17,6 +17,7 @@ All notable changes to **Crona** are documented here.
 - Idle-only stash dialog in the TUI with stash pop/apply.
 - Root `.env`-driven runtime mode plus dev-only seed / clear workflows.
 - Root `Makefile` and helper scripts for workspace tasks and dev data management.
+- Release builder and TUI installer flow for shipping standalone `crona-tui` and `crona-kernel` binaries.
 - Go end-to-end tests under `kernel/e2e`.
 
 ### Changed
@@ -35,6 +36,7 @@ All notable changes to **Crona** are documented here.
 - Session progress uses cumulative worked time for the active issue based on kernel session history.
 - Focus-session start/end now drive issue status transitions through the kernel timer flow.
 - Status colors are applied consistently across issue lists and dashboard indicators.
+- Release packaging now treats TUI and kernel as independent deliverables instead of bundling them together.
 
 ### Fixed
 - Session timer acceleration caused by overlapping local tick loops.

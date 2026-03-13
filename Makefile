@@ -4,7 +4,7 @@ PROJECT_DESCRIPTION := Local-first work kernel, TUI, and shared contracts
 GO ?= go
 GOCACHE ?= /tmp/crona-go-cache
 
-.PHONY: help meta build test fmt vet run-kernel run-tui install-kernel install-tui seed-dev clear-dev
+.PHONY: help meta build test fmt vet run-kernel run-tui install-kernel install-tui seed-dev clear-dev release
 
 help:
 	@printf "%s %s\n" "$(PROJECT_NAME)" "$(PROJECT_VERSION)"
@@ -20,6 +20,7 @@ help:
 	@printf "  make install-tui     Build and install the TUI binary into ./bin\n"
 	@printf "  make seed-dev        Seed dev data through the kernel\n"
 	@printf "  make clear-dev       Clear dev data through the kernel\n"
+	@printf "  make release VERSION=<tag>  Build release binaries and installer\n"
 	@printf "  make meta            Print project metadata\n"
 
 meta:
@@ -61,3 +62,7 @@ seed-dev:
 
 clear-dev:
 	sh ./scripts/dev_clear.sh
+
+release:
+	@if [ -z "$(VERSION)" ]; then echo "VERSION is required, e.g. make release VERSION=v0.1.0-beta.1"; exit 1; fi
+	sh ./scripts/build_release.sh "$(VERSION)"

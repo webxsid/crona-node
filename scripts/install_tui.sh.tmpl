@@ -1,0 +1,50 @@
+#!/usr/bin/env sh
+set -eu
+
+VERSION="__VERSION__"
+REPO="webxsid/crona-node"
+INSTALL_DIR="${CRONA_INSTALL_DIR:-$HOME/.local/bin}"
+
+detect_os() {
+  case "$(uname -s)" in
+    Darwin) echo "darwin" ;;
+    Linux) echo "linux" ;;
+    *)
+      echo "Unsupported OS: $(uname -s)" >&2
+      exit 1
+      ;;
+  esac
+}
+
+detect_arch() {
+  case "$(uname -m)" in
+    arm64|aarch64) echo "arm64" ;;
+    x86_64|amd64) echo "amd64" ;;
+    *)
+      echo "Unsupported architecture: $(uname -m)" >&2
+      exit 1
+      ;;
+  esac
+}
+
+OS="$(detect_os)"
+ARCH="$(detect_arch)"
+BASE_URL="https://github.com/${REPO}/releases/download/${VERSION}"
+KERNEL_URL="${BASE_URL}/crona-kernel-${VERSION}-${OS}-${ARCH}"
+TUI_URL="${BASE_URL}/crona-tui-${VERSION}-${OS}-${ARCH}"
+
+mkdir -p "${INSTALL_DIR}"
+
+echo "Installing Crona ${VERSION} to ${INSTALL_DIR}"
+curl -fsSL "${KERNEL_URL}" -o "${INSTALL_DIR}/crona-kernel"
+curl -fsSL "${TUI_URL}" -o "${INSTALL_DIR}/crona-tui"
+chmod +x "${INSTALL_DIR}/crona-kernel" "${INSTALL_DIR}/crona-tui"
+
+echo
+echo "Installed:"
+echo "  ${INSTALL_DIR}/crona-kernel"
+echo "  ${INSTALL_DIR}/crona-tui"
+echo
+echo "Make sure ${INSTALL_DIR} is on your PATH."
+echo "Then run:"
+echo "  crona-tui"
