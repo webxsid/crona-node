@@ -18,6 +18,39 @@ curl -fsSL https://github.com/webxsid/crona-node/releases/download/v0.1.0-beta.2
 
 By default this installs into `~/.local/bin`.
 
+## Manual Build And Install
+
+If you want to build from source instead of using the release installer, clone the repo and build the workspace locally.
+
+```bash
+make build
+```
+
+To install the kernel into your Go bin directory:
+
+```bash
+make install-kernel
+```
+
+To build the TUI binary locally into the repo `bin/` directory:
+
+```bash
+make install-tui
+```
+
+If you prefer fully manual Go commands instead of the `Makefile` targets:
+
+```bash
+cd kernel && go install ./cmd/crona-kernel
+cd tui && go build -o ../bin/crona-tui .
+```
+
+Make sure both `crona-kernel` and `crona-tui` are on your `PATH` before launching:
+
+```bash
+crona-tui
+```
+
 ## Repository Structure
 
 ```text
