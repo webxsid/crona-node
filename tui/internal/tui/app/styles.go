@@ -1,14 +1,17 @@
-package tui
+package app
 
 import "github.com/charmbracelet/lipgloss"
 
 var (
-	colorCyan   = lipgloss.Color("14")
-	colorGreen  = lipgloss.Color("10")
-	colorYellow = lipgloss.Color("11")
-	colorRed    = lipgloss.Color("9")
-	colorDim    = lipgloss.Color("8")
-	colorWhite  = lipgloss.Color("15")
+	colorBlue    = lipgloss.Color("12")
+	colorCyan    = lipgloss.Color("14")
+	colorGreen   = lipgloss.Color("10")
+	colorMagenta = lipgloss.Color("13")
+	colorSubtle  = lipgloss.Color("7")
+	colorYellow  = lipgloss.Color("11")
+	colorRed     = lipgloss.Color("9")
+	colorDim     = lipgloss.Color("8")
+	colorWhite   = lipgloss.Color("15")
 
 	styleActive = lipgloss.NewStyle().
 			BorderStyle(lipgloss.RoundedBorder()).

@@ -28,17 +28,17 @@ func write(level, msg string) {
 
 	if f, err := os.OpenFile(filepath.Join(dir, "info.log"), os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o600); err == nil {
 		_, _ = f.WriteString(entry)
-		f.Close()
+		_ = f.Close()
 	}
 	if level == "ERROR" {
 		if f, err := os.OpenFile(filepath.Join(dir, "error.log"), os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o600); err == nil {
 			_, _ = f.WriteString(entry)
-			f.Close()
+			_ = f.Close()
 		}
 	}
 }
 
-func Info(msg string)                        { write("INFO", msg) }
-func Infof(format string, args ...any)       { write("INFO", fmt.Sprintf(format, args...)) }
-func Error(msg string)                       { write("ERROR", msg) }
-func Errorf(format string, args ...any)      { write("ERROR", fmt.Sprintf(format, args...)) }
+func Info(msg string)                   { write("INFO", msg) }
+func Infof(format string, args ...any)  { write("INFO", fmt.Sprintf(format, args...)) }
+func Error(msg string)                  { write("ERROR", msg) }
+func Errorf(format string, args ...any) { write("ERROR", fmt.Sprintf(format, args...)) }

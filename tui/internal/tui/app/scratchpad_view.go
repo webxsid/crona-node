@@ -1,4 +1,4 @@
-package tui
+package app
 
 import (
 	"strings"
@@ -146,10 +146,9 @@ func (m Model) updateScratchpadPane(msg tea.KeyMsg) (Model, tea.Cmd) {
 		}
 		return m, openEditor(m.scratchpadFilePath)
 
-	case "t":
+	case "s":
 		if m.timer != nil && m.timer.State != "idle" {
-			next, cmd := m.cycleSelectedIssueStatus()
-			return next.(Model), cmd
+			return m, m.setStatus("End or stash the active session before changing issue status", true)
 		}
 		return m, nil
 
@@ -183,19 +182,19 @@ func (m Model) updateScratchpadPane(msg tea.KeyMsg) (Model, tea.Cmd) {
 		return m, nil
 
 	case "j", "down":
-		m.scratchpadViewport.LineDown(1)
+		m.scratchpadViewport.ScrollDown(1)
 		return m, nil
 
 	case "k", "up":
-		m.scratchpadViewport.LineUp(1)
+		m.scratchpadViewport.ScrollUp(1)
 		return m, nil
 
 	case "d", "ctrl+d":
-		m.scratchpadViewport.HalfViewDown()
+		m.scratchpadViewport.HalfPageDown()
 		return m, nil
 
 	case "u", "ctrl+u":
-		m.scratchpadViewport.HalfViewUp()
+		m.scratchpadViewport.HalfPageUp()
 		return m, nil
 
 	case "g":

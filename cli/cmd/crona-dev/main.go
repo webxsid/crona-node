@@ -68,7 +68,7 @@ func call(socketPath string, method string) error {
 	if err != nil {
 		return err
 	}
-	defer conn.Close()
+	defer func() { _ = conn.Close() }()
 	_ = conn.SetDeadline(time.Now().Add(10 * time.Second))
 
 	body, err := json.Marshal(protocol.Request{

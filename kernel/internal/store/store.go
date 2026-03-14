@@ -20,6 +20,11 @@ func Open(dbPath string) (*Store, error) {
 	if err != nil {
 		return nil, err
 	}
+	// SQLite behaves much more predictably with a single shared connection for
+	// this local kernel process; leaving the default pool enabled can surface
+	// SQLITE_BUSY during overlapping RPCs and health checks.
+	sqlDB.SetMaxOpenConns(1)
+	sqlDB.SetMaxIdleConns(1)
 
 	db := bun.NewDB(sqlDB, sqlitedialect.New())
 	return &Store{

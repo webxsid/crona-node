@@ -1,10 +1,6 @@
 package store
 
-import (
-	"time"
-
-	"github.com/uptrace/bun"
-)
+import "github.com/uptrace/bun"
 
 type RepoModel struct {
 	bun.BaseModel `bun:"table:repos"`
@@ -153,8 +149,4 @@ type ScratchPadMetaModel struct {
 	Path         string `bun:"path,notnull,unique,type:text"`
 	LastOpenedAt string `bun:"last_opened_at,notnull,type:text"`
 	Pinned       bool   `bun:"pinned,notnull,type:integer"`
-}
-
-func nowUTC() string {
-	return time.Now().UTC().Format(time.RFC3339)
 }

@@ -22,7 +22,9 @@ func Create(root string, userPath string, title string) (string, error) {
 		}
 		return "", err
 	}
-	defer f.Close()
+	defer func() {
+		_ = f.Close()
+	}()
 	if safeTitle := strings.TrimSpace(title); safeTitle != "" {
 		if _, err := f.WriteString("# " + safeTitle + "\n\n"); err != nil {
 			return "", err

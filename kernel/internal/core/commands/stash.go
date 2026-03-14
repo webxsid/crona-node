@@ -90,6 +90,13 @@ func StashPop(ctx context.Context, c *core.Context, timer *TimerService, stashID
 	if stash == nil {
 		return errors.New("stash not found")
 	}
+	activeSession, err := c.Sessions.GetActiveSession(ctx, c.UserID)
+	if err != nil {
+		return err
+	}
+	if activeSession != nil {
+		return errors.New("cannot apply stash while a focus session is active")
+	}
 	if _, err := c.ActiveContext.Set(ctx, c.UserID, c.DeviceID, struct {
 		RepoID   *int64
 		StreamID *int64

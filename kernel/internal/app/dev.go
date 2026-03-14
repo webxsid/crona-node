@@ -39,6 +39,7 @@ func (h *Handler) seedDevData(ctx context.Context) error {
 	}
 
 	today := time.Now().UTC().Format("2006-01-02")
+	tomorrow := time.Now().UTC().Add(24 * time.Hour).Format("2006-01-02")
 
 	workRepo, err := corecommands.CreateRepo(ctx, h.core, struct {
 		Name  string
@@ -111,7 +112,7 @@ func (h *Handler) seedDevData(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	if _, err := corecommands.CreateIssue(ctx, h.core, struct {
+	_, err = corecommands.CreateIssue(ctx, h.core, struct {
 		StreamID        int64
 		Title           string
 		EstimateMinutes *int
@@ -121,9 +122,99 @@ func (h *Handler) seedDevData(ctx context.Context) error {
 		StreamID:        appStream.ID,
 		Title:           "Add CLI command surface",
 		EstimateMinutes: devIntPtr(60),
-	}); err != nil {
+		TodoForDate:     &tomorrow,
+	})
+	if err != nil {
 		return err
 	}
+
+	readyIssue, err := corecommands.CreateIssue(ctx, h.core, struct {
+		StreamID        int64
+		Title           string
+		EstimateMinutes *int
+		Notes           *string
+		TodoForDate     *string
+	}{
+		StreamID:        infraStream.ID,
+		Title:           "Prepare rollout checklist",
+		EstimateMinutes: devIntPtr(45),
+		Notes:           devStringPtr("Waiting only on final go/no-go review."),
+		TodoForDate:     &today,
+	})
+	if err != nil {
+		return err
+	}
+	if _, err := corecommands.ChangeIssueStatus(ctx, h.core, readyIssue.ID, sharedtypes.IssueStatusReady, nil); err != nil {
+		return err
+	}
+
+	inProgressIssue, err := corecommands.CreateIssue(ctx, h.core, struct {
+		StreamID        int64
+		Title           string
+		EstimateMinutes *int
+		Notes           *string
+		TodoForDate     *string
+	}{
+		StreamID:        infraStream.ID,
+		Title:           "Wire release packaging checks",
+		EstimateMinutes: devIntPtr(75),
+		Notes:           devStringPtr("Partially implemented; needs artifact verification."),
+	})
+	if err != nil {
+		return err
+	}
+	if _, err := corecommands.ChangeIssueStatus(ctx, h.core, inProgressIssue.ID, sharedtypes.IssueStatusPlanned, nil); err != nil {
+		return err
+	}
+	if _, err := corecommands.ChangeIssueStatus(ctx, h.core, inProgressIssue.ID, sharedtypes.IssueStatusInProgress, nil); err != nil {
+		return err
+	}
+
+	blockedIssue, err := corecommands.CreateIssue(ctx, h.core, struct {
+		StreamID        int64
+		Title           string
+		EstimateMinutes *int
+		Notes           *string
+		TodoForDate     *string
+	}{
+		StreamID:        infraStream.ID,
+		Title:           "Provision CI signing secrets",
+		EstimateMinutes: devIntPtr(30),
+	})
+	if err != nil {
+		return err
+	}
+	if _, err := corecommands.ChangeIssueStatus(ctx, h.core, blockedIssue.ID, sharedtypes.IssueStatusPlanned, nil); err != nil {
+		return err
+	}
+	if _, err := corecommands.ChangeIssueStatus(ctx, h.core, blockedIssue.ID, sharedtypes.IssueStatusBlocked, devStringPtr("Awaiting access to the signing account")); err != nil {
+		return err
+	}
+
+	reviewIssue, err := corecommands.CreateIssue(ctx, h.core, struct {
+		StreamID        int64
+		Title           string
+		EstimateMinutes *int
+		Notes           *string
+		TodoForDate     *string
+	}{
+		StreamID:        appStream.ID,
+		Title:           "Review lifecycle UX copy",
+		EstimateMinutes: devIntPtr(40),
+	})
+	if err != nil {
+		return err
+	}
+	if _, err := corecommands.ChangeIssueStatus(ctx, h.core, reviewIssue.ID, sharedtypes.IssueStatusPlanned, nil); err != nil {
+		return err
+	}
+	if _, err := corecommands.ChangeIssueStatus(ctx, h.core, reviewIssue.ID, sharedtypes.IssueStatusInProgress, nil); err != nil {
+		return err
+	}
+	if _, err := corecommands.ChangeIssueStatus(ctx, h.core, reviewIssue.ID, sharedtypes.IssueStatusInReview, devStringPtr("Ready for wording and interaction review")); err != nil {
+		return err
+	}
+
 	doneIssue, err := corecommands.CreateIssue(ctx, h.core, struct {
 		StreamID        int64
 		Title           string
@@ -138,12 +229,37 @@ func (h *Handler) seedDevData(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	if _, err := corecommands.ChangeIssueStatus(ctx, h.core, doneIssue.ID, sharedtypes.IssueStatusActive); err != nil {
+	if _, err := corecommands.ChangeIssueStatus(ctx, h.core, doneIssue.ID, sharedtypes.IssueStatusPlanned, nil); err != nil {
 		return err
 	}
-	if _, err := corecommands.ChangeIssueStatus(ctx, h.core, doneIssue.ID, sharedtypes.IssueStatusDone); err != nil {
+	if _, err := corecommands.ChangeIssueStatus(ctx, h.core, doneIssue.ID, sharedtypes.IssueStatusInProgress, nil); err != nil {
 		return err
 	}
+	if _, err := corecommands.ChangeIssueStatus(ctx, h.core, doneIssue.ID, sharedtypes.IssueStatusDone, nil); err != nil {
+		return err
+	}
+
+	abandonedIssue, err := corecommands.CreateIssue(ctx, h.core, struct {
+		StreamID        int64
+		Title           string
+		EstimateMinutes *int
+		Notes           *string
+		TodoForDate     *string
+	}{
+		StreamID:        homeStream.ID,
+		Title:           "Research standing desk options",
+		EstimateMinutes: devIntPtr(25),
+	})
+	if err != nil {
+		return err
+	}
+	if _, err := corecommands.ChangeIssueStatus(ctx, h.core, abandonedIssue.ID, sharedtypes.IssueStatusPlanned, nil); err != nil {
+		return err
+	}
+	if _, err := corecommands.ChangeIssueStatus(ctx, h.core, abandonedIssue.ID, sharedtypes.IssueStatusAbandoned, devStringPtr("Deferred until the room reorganization is done")); err != nil {
+		return err
+	}
+
 	if _, err := corecommands.CreateIssue(ctx, h.core, struct {
 		StreamID        int64
 		Title           string

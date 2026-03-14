@@ -1,8 +1,10 @@
-package tui
+package app
 
 import (
 	"fmt"
 	"strings"
+
+	"crona/tui/internal/tui/app/views"
 
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
@@ -24,8 +26,10 @@ func (m *Model) paneItems(pane Pane) []string {
 		return items
 	case PaneIssues:
 		if m.view == ViewDefault {
-			items := make([]string, 0, len(m.allIssues))
-			for _, issue := range m.allIssues {
+			ordered := views.PrioritizedDefaultIssueIndices(m.allIssues, m.filters[PaneIssues])
+			items := make([]string, 0, len(ordered))
+			for _, idx := range ordered {
+				issue := m.allIssues[idx]
 				estimate := ""
 				if issue.EstimateMinutes != nil {
 					estimate = fmt.Sprintf(" %dm", *issue.EstimateMinutes)
@@ -95,12 +99,15 @@ func (m *Model) paneItems(pane Pane) []string {
 		}
 		return items
 	case PaneSettings:
-		return m.settingsItemLabels()
+		return views.SettingsItemLabels(m.settings)
 	}
 	return nil
 }
 
 func (m *Model) filteredIndices(pane Pane) []int {
+	if pane == PaneIssues && m.view == ViewDefault {
+		return views.PrioritizedDefaultIssueIndices(m.allIssues, m.filters[pane])
+	}
 	items := m.paneItems(pane)
 	query := strings.TrimSpace(strings.ToLower(m.filters[pane]))
 	if query == "" {

@@ -42,7 +42,7 @@ func readStream(socketPath string, ch chan<- KernelEvent, done <-chan struct{}) 
 	if err != nil {
 		return err
 	}
-	defer conn.Close()
+	defer func() { _ = conn.Close() }()
 
 	reqBody, err := json.Marshal(protocol.Request{
 		ID:     "events-subscribe",

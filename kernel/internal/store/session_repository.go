@@ -105,6 +105,69 @@ func (r *SessionRepository) GetByID(ctx context.Context, sessionID string, userI
 		Limit(1))
 }
 
+func (r *SessionRepository) GetDetail(ctx context.Context, sessionID string, userID string) (*sharedtypes.SessionDetail, error) {
+	type row struct {
+		ID              string  `bun:"id"`
+		IssuePublicID   int64   `bun:"issue_public_id"`
+		IssueTitle      string  `bun:"issue_title"`
+		StreamPublicID  int64   `bun:"stream_public_id"`
+		StreamName      string  `bun:"stream_name"`
+		RepoPublicID    int64   `bun:"repo_public_id"`
+		RepoName        string  `bun:"repo_name"`
+		StartTime       string  `bun:"start_time"`
+		EndTime         *string `bun:"end_time"`
+		DurationSeconds *int    `bun:"duration_seconds"`
+		Notes           *string `bun:"notes"`
+	}
+
+	var item row
+	err := r.db.NewSelect().
+		TableExpr("sessions").
+		Join("INNER JOIN issues ON issues.id = sessions.issue_id").
+		Join("INNER JOIN streams ON streams.id = issues.stream_id").
+		Join("INNER JOIN repos ON repos.id = streams.repo_id").
+		ColumnExpr("sessions.id").
+		ColumnExpr("issues.public_id AS issue_public_id").
+		ColumnExpr("issues.title AS issue_title").
+		ColumnExpr("streams.public_id AS stream_public_id").
+		ColumnExpr("streams.name AS stream_name").
+		ColumnExpr("repos.public_id AS repo_public_id").
+		ColumnExpr("repos.name AS repo_name").
+		ColumnExpr("sessions.start_time").
+		ColumnExpr("sessions.end_time").
+		ColumnExpr("sessions.duration_seconds").
+		ColumnExpr("sessions.notes").
+		Where("sessions.id = ?", sessionID).
+		Where("sessions.user_id = ?", userID).
+		Where("sessions.deleted_at IS NULL").
+		Limit(1).
+		Scan(ctx, &item)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, nil
+		}
+		return nil, err
+	}
+
+	return &sharedtypes.SessionDetail{
+		SessionHistoryEntry: sharedtypes.SessionHistoryEntry{
+			Session: sharedtypes.Session{
+				ID:              item.ID,
+				IssueID:         item.IssuePublicID,
+				StartTime:       item.StartTime,
+				EndTime:         item.EndTime,
+				DurationSeconds: item.DurationSeconds,
+				Notes:           item.Notes,
+			},
+		},
+		RepoID:     item.RepoPublicID,
+		RepoName:   item.RepoName,
+		StreamID:   item.StreamPublicID,
+		StreamName: item.StreamName,
+		IssueTitle: item.IssueTitle,
+	}, nil
+}
+
 func (r *SessionRepository) ListByIssue(ctx context.Context, issueID int64, userID string) ([]sharedtypes.Session, error) {
 	type row struct {
 		ID              string  `bun:"id"`

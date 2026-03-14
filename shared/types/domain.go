@@ -5,10 +5,14 @@ package types
 type IssueStatus string
 
 const (
-	IssueStatusTodo      IssueStatus = "todo"
-	IssueStatusActive    IssueStatus = "active"
-	IssueStatusDone      IssueStatus = "done"
-	IssueStatusAbandoned IssueStatus = "abandoned"
+	IssueStatusBacklog    IssueStatus = "backlog"
+	IssueStatusPlanned    IssueStatus = "planned"
+	IssueStatusReady      IssueStatus = "ready"
+	IssueStatusInProgress IssueStatus = "in_progress"
+	IssueStatusBlocked    IssueStatus = "blocked"
+	IssueStatusInReview   IssueStatus = "in_review"
+	IssueStatusDone       IssueStatus = "done"
+	IssueStatusAbandoned  IssueStatus = "abandoned"
 )
 
 type StreamVisibility string
@@ -134,6 +138,16 @@ type ParsedSessionNotes map[SessionNoteSection]string
 type SessionHistoryEntry struct {
 	Session
 	ParsedNotes ParsedSessionNotes `json:"parsedNotes,omitempty"`
+}
+
+type SessionDetail struct {
+	SessionHistoryEntry
+	RepoID      int64              `json:"repoId"`
+	RepoName    string             `json:"repoName"`
+	StreamID    int64              `json:"streamId"`
+	StreamName  string             `json:"streamName"`
+	IssueTitle  string             `json:"issueTitle"`
+	WorkSummary SessionWorkSummary `json:"workSummary"`
 }
 
 type SessionWorkSummary struct {

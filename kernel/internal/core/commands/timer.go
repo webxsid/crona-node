@@ -99,13 +99,21 @@ func (t *TimerService) Start(ctx context.Context, issueID *int64) (sharedtypes.T
 	if resolvedIssueID == 0 {
 		return sharedtypes.TimerState{}, errors.New("no issue specified and no active issue in context")
 	}
+	issue, err := t.ctx.Issues.GetByID(ctx, resolvedIssueID, t.ctx.UserID)
+	if err != nil {
+		return sharedtypes.TimerState{}, err
+	}
+	if issue == nil {
+		return sharedtypes.TimerState{}, errors.New("issue not found")
+	}
+	if !sharedtypes.CanStartFocus(issue.Status) {
+		return sharedtypes.TimerState{}, errors.New("focus sessions cannot be started for the current issue status")
+	}
 	if _, err := StartSession(ctx, t.ctx, resolvedIssueID); err != nil {
 		return sharedtypes.TimerState{}, err
 	}
-	if issue, err := t.ctx.Issues.GetByID(ctx, resolvedIssueID, t.ctx.UserID); err != nil {
-		return sharedtypes.TimerState{}, err
-	} else if issue != nil && issue.Status != sharedtypes.IssueStatusActive {
-		if _, err := ChangeIssueStatus(ctx, t.ctx, resolvedIssueID, sharedtypes.IssueStatusActive); err != nil {
+	if nextStatus := sharedtypes.AutoStatusOnFocusStart(issue.Status); nextStatus != sharedtypes.NormalizeIssueStatus(issue.Status) {
+		if _, err := changeIssueStatus(ctx, t.ctx, resolvedIssueID, nextStatus, nil, true); err != nil {
 			return sharedtypes.TimerState{}, err
 		}
 	}
@@ -166,22 +174,9 @@ func (t *TimerService) Resume(ctx context.Context) (sharedtypes.TimerState, erro
 	return state, nil
 }
 
-func (t *TimerService) End(ctx context.Context, commitMessage *string) (sharedtypes.TimerState, error) {
-	activeSession, err := t.ctx.Sessions.GetActiveSession(ctx, t.ctx.UserID)
-	if err != nil {
+func (t *TimerService) End(ctx context.Context, input SessionEndInput) (sharedtypes.TimerState, error) {
+	if _, err := StopSession(ctx, t.ctx, input); err != nil {
 		return sharedtypes.TimerState{}, err
-	}
-	if _, err := StopSession(ctx, t.ctx, commitMessage); err != nil {
-		return sharedtypes.TimerState{}, err
-	}
-	if activeSession != nil {
-		if issue, err := t.ctx.Issues.GetByID(ctx, activeSession.IssueID, t.ctx.UserID); err != nil {
-			return sharedtypes.TimerState{}, err
-		} else if issue != nil && issue.Status != sharedtypes.IssueStatusDone {
-			if _, err := ChangeIssueStatus(ctx, t.ctx, activeSession.IssueID, sharedtypes.IssueStatusDone); err != nil {
-				return sharedtypes.TimerState{}, err
-			}
-		}
 	}
 	t.clearBoundary()
 	state, err := t.GetState(ctx)
@@ -190,6 +185,11 @@ func (t *TimerService) End(ctx context.Context, commitMessage *string) (sharedty
 	}
 	emit(t.ctx, sharedtypes.EventTypeTimerState, state)
 	return state, nil
+}
+
+func (t *TimerService) RecoverBoundary(ctx context.Context) error {
+	t.clearBoundary()
+	return t.ScheduleNextBoundary(ctx)
 }
 
 func (t *TimerService) RestoreFromStash(ctx context.Context, input struct {

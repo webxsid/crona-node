@@ -5,6 +5,8 @@ import (
 	"database/sql"
 	"fmt"
 
+	sharedtypes "crona/shared/types"
+
 	"github.com/uptrace/bun"
 )
 
@@ -42,6 +44,9 @@ func InitSchema(ctx context.Context, db *bun.DB) error {
 			return err
 		}
 	}
+	if err := migrateLegacyIssueStatuses(ctx, db); err != nil {
+		return err
+	}
 
 	indexes := []string{
 		"CREATE UNIQUE INDEX IF NOT EXISTS idx_repos_public_id ON repos (public_id)",
@@ -78,12 +83,27 @@ func InitSchema(ctx context.Context, db *bun.DB) error {
 	return nil
 }
 
+func migrateLegacyIssueStatuses(ctx context.Context, db *bun.DB) error {
+	replacements := map[string]string{
+		"todo":   string(sharedtypes.IssueStatusBacklog),
+		"active": string(sharedtypes.IssueStatusInProgress),
+	}
+	for from, to := range replacements {
+		if _, err := db.ExecContext(ctx, "UPDATE issues SET status = ? WHERE status = ?", to, from); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 func ensureIssueColumn(ctx context.Context, db *bun.DB, columnName string) error {
 	rows, err := db.QueryContext(ctx, "PRAGMA table_info('issues')")
 	if err != nil {
 		return err
 	}
-	defer rows.Close()
+	defer func() {
+		_ = rows.Close()
+	}()
 
 	var (
 		cid       int

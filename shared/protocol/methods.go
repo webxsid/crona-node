@@ -37,6 +37,7 @@ const (
 
 	MethodSessionListByIssue = "session.list_by_issue"
 	MethodSessionGet         = "session.get"
+	MethodSessionDetail      = "session.detail"
 	MethodSessionGetActive   = "session.get_active"
 	MethodSessionStart       = "session.start"
 	MethodSessionPause       = "session.pause"

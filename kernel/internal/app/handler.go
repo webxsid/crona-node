@@ -242,7 +242,7 @@ func (h *Handler) Handle(ctx context.Context, req protocol.Request) protocol.Res
 		})
 	case protocol.MethodIssueChangeStatus:
 		return handle(req, func(input shareddto.ChangeIssueStatusRequest) (any, error) {
-			return corecommands.ChangeIssueStatus(ctx, h.core, input.ID, input.Status)
+			return corecommands.ChangeIssueStatus(ctx, h.core, input.ID, input.Status, input.Note)
 		})
 	case protocol.MethodIssueSetTodo:
 		return h.handleNoParams(req, func() (any, error) {
@@ -345,6 +345,10 @@ func (h *Handler) Handle(ctx context.Context, req protocol.Request) protocol.Res
 		return handle(req, func(input shareddto.SessionIDRequest) (any, error) {
 			return h.core.Sessions.GetByID(ctx, input.ID, h.core.UserID)
 		})
+	case protocol.MethodSessionDetail:
+		return handle(req, func(input shareddto.SessionIDRequest) (any, error) {
+			return corecommands.GetSessionDetail(ctx, h.core, input.ID)
+		})
 	case protocol.MethodSessionGetActive:
 		return h.handleNoParams(req, func() (any, error) {
 			return h.core.Sessions.GetActiveSession(ctx, h.core.UserID)
@@ -363,7 +367,14 @@ func (h *Handler) Handle(ctx context.Context, req protocol.Request) protocol.Res
 		})
 	case protocol.MethodSessionEnd:
 		return handle(req, func(input shareddto.EndSessionRequest) (any, error) {
-			return corecommands.StopSession(ctx, h.core, input.CommitMessage)
+			return corecommands.StopSession(ctx, h.core, corecommands.SessionEndInput{
+				CommitMessage: input.CommitMessage,
+				WorkedOn:      input.WorkedOn,
+				Outcome:       input.Outcome,
+				NextStep:      input.NextStep,
+				Blockers:      input.Blockers,
+				Links:         input.Links,
+			})
 		})
 	case protocol.MethodSessionAmendNote:
 		return handle(req, func(input shareddto.AmendSessionNoteRequest) (any, error) {
@@ -409,7 +420,14 @@ func (h *Handler) Handle(ctx context.Context, req protocol.Request) protocol.Res
 		})
 	case protocol.MethodTimerEnd:
 		return handle(req, func(input shareddto.EndSessionRequest) (any, error) {
-			return h.timer.End(ctx, input.CommitMessage)
+			return h.timer.End(ctx, corecommands.SessionEndInput{
+				CommitMessage: input.CommitMessage,
+				WorkedOn:      input.WorkedOn,
+				Outcome:       input.Outcome,
+				NextStep:      input.NextStep,
+				Blockers:      input.Blockers,
+				Links:         input.Links,
+			})
 		})
 
 	case protocol.MethodStashList:
@@ -641,18 +659,6 @@ func decodeObject(raw json.RawMessage) (map[string]json.RawMessage, error) {
 	var out map[string]json.RawMessage
 	if err := json.Unmarshal(raw, &out); err != nil {
 		return nil, err
-	}
-	return out, nil
-}
-
-func decodeRequiredString(raw map[string]json.RawMessage, key string) (string, error) {
-	value, ok := raw[key]
-	if !ok {
-		return "", errors.New(key + " is required")
-	}
-	var out string
-	if err := json.Unmarshal(value, &out); err != nil {
-		return "", err
 	}
 	return out, nil
 }

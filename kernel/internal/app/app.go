@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"crona/kernel/internal/core"
+	corecommands "crona/kernel/internal/core/commands"
 	"crona/kernel/internal/events"
 	"crona/kernel/internal/ipc"
 	"crona/kernel/internal/runtime"
@@ -72,6 +73,10 @@ func Run(ctx context.Context) error {
 	}
 
 	server := ipc.NewServer(paths.SocketPath, NewHandler(startedAt, info, dbStore.Ping, commandCtx, bus, cancel, appEnv.Mode), logger)
+	timer := corecommands.GetTimerService(commandCtx)
+	if err := timer.RecoverBoundary(runCtx); err != nil {
+		return fmt.Errorf("recover timer boundary: %w", err)
+	}
 	if err := server.Start(); err != nil {
 		return fmt.Errorf("start ipc server: %w", err)
 	}

@@ -19,6 +19,8 @@ func TestTimerStashRestoreFlowOverIPC(t *testing.T) {
 	repoB := createRepo(t, kernel, "Repo B")
 	streamB := createStream(t, kernel, repoB.ID, "dev")
 	issueB := createIssue(t, kernel, streamB.ID, "Issue B", nil)
+	changeIssueStatus(t, kernel, issueA.ID, sharedtypes.IssueStatusPlanned)
+	changeIssueStatus(t, kernel, issueB.ID, sharedtypes.IssueStatusPlanned)
 
 	var ctx sharedtypes.ActiveContext
 	kernel.call(t, protocol.MethodContextSet, map[string]any{
@@ -68,6 +70,11 @@ func TestTimerStashRestoreFlowOverIPC(t *testing.T) {
 	kernel.call(t, protocol.MethodTimerStart, shareddto.TimerStartRequest{}, &timer)
 	if timer.IssueID == nil || *timer.IssueID != issueB.ID {
 		t.Fatalf("expected second issue to run, got %+v", timer)
+	}
+
+	errMessage := kernel.callError(t, protocol.MethodStashApply, shareddto.StashIDRequest{ID: stash.ID})
+	if errMessage != "cannot apply stash while a focus session is active" {
+		t.Fatalf("expected active-session stash apply denial, got %q", errMessage)
 	}
 
 	kernel.call(t, protocol.MethodTimerEnd, shareddto.EndSessionRequest{

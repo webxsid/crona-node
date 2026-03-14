@@ -32,6 +32,30 @@ func TestDevSeedAndClearOverIPC(t *testing.T) {
 		t.Fatalf("expected seeded repos")
 	}
 
+	var issues []sharedtypes.IssueWithMeta
+	kernel.call(t, protocol.MethodIssueListAll, nil, &issues)
+	if len(issues) < 8 {
+		t.Fatalf("expected seeded issues across lifecycle states, got %d", len(issues))
+	}
+
+	statusCounts := map[sharedtypes.IssueStatus]int{}
+	for _, issue := range issues {
+		statusCounts[issue.Status]++
+	}
+	for _, status := range []sharedtypes.IssueStatus{
+		sharedtypes.IssueStatusPlanned,
+		sharedtypes.IssueStatusReady,
+		sharedtypes.IssueStatusInProgress,
+		sharedtypes.IssueStatusBlocked,
+		sharedtypes.IssueStatusInReview,
+		sharedtypes.IssueStatusDone,
+		sharedtypes.IssueStatusAbandoned,
+	} {
+		if statusCounts[status] == 0 {
+			t.Fatalf("expected seeded issue with status %q, got counts: %#v", status, statusCounts)
+		}
+	}
+
 	var cleared shareddto.OKResponse
 	kernel.call(t, protocol.MethodKernelClearDev, nil, &cleared)
 	if !cleared.OK {

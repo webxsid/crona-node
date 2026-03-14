@@ -68,6 +68,7 @@ type UpdateIssueRequest struct {
 type ChangeIssueStatusRequest struct {
 	ID     int64             `json:"id"`
 	Status types.IssueStatus `json:"status"`
+	Note   *string           `json:"note,omitempty"`
 }
 
 type SetIssueTodoRequest struct {
@@ -89,6 +90,11 @@ type StartSessionRequest struct {
 
 type EndSessionRequest struct {
 	CommitMessage *string `json:"commitMessage,omitempty"`
+	WorkedOn      *string `json:"workedOn,omitempty"`
+	Outcome       *string `json:"outcome,omitempty"`
+	NextStep      *string `json:"nextStep,omitempty"`
+	Blockers      *string `json:"blockers,omitempty"`
+	Links         *string `json:"links,omitempty"`
 }
 
 type AmendSessionNoteRequest struct {

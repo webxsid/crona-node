@@ -100,7 +100,9 @@ func (k *testKernel) call(t *testing.T, method string, params any, out any) {
 	if err != nil {
 		t.Fatalf("dial kernel socket: %v", err)
 	}
-	defer conn.Close()
+	defer func() {
+		_ = conn.Close()
+	}()
 	_ = conn.SetDeadline(time.Now().Add(5 * time.Second))
 
 	var raw json.RawMessage
@@ -138,6 +140,50 @@ func (k *testKernel) call(t *testing.T, method string, params any, out any) {
 	if err := json.Unmarshal(resp.Result, out); err != nil {
 		t.Fatalf("decode result for %s: %v", method, err)
 	}
+}
+
+func (k *testKernel) callError(t *testing.T, method string, params any) string {
+	t.Helper()
+
+	conn, err := net.DialTimeout("unix", k.socket, 3*time.Second)
+	if err != nil {
+		t.Fatalf("dial kernel socket: %v", err)
+	}
+	defer func() {
+		_ = conn.Close()
+	}()
+	_ = conn.SetDeadline(time.Now().Add(5 * time.Second))
+
+	var raw json.RawMessage
+	if params != nil {
+		body, err := json.Marshal(params)
+		if err != nil {
+			t.Fatalf("marshal params for %s: %v", method, err)
+		}
+		raw = body
+	}
+
+	reqID := k.requestID.Add(1)
+	reqBody, err := json.Marshal(protocol.Request{
+		ID:     "test-" + strconv.FormatUint(reqID, 10),
+		Method: method,
+		Params: raw,
+	})
+	if err != nil {
+		t.Fatalf("marshal request for %s: %v", method, err)
+	}
+	if _, err := conn.Write(append(reqBody, '\n')); err != nil {
+		t.Fatalf("write request for %s: %v", method, err)
+	}
+
+	var resp protocol.Response
+	if err := json.NewDecoder(bufio.NewReader(conn)).Decode(&resp); err != nil {
+		t.Fatalf("decode response for %s: %v", method, err)
+	}
+	if resp.Error == nil {
+		t.Fatalf("%s unexpectedly succeeded", method)
+	}
+	return resp.Error.Message
 }
 
 func waitForFile(path string, timeout time.Duration) error {
@@ -179,4 +225,21 @@ func createIssue(t *testing.T, k *testKernel, streamID int64, title string, esti
 		EstimateMinutes: estimate,
 	}, &issue)
 	return issue
+}
+
+func changeIssueStatus(t *testing.T, k *testKernel, issueID int64, status sharedtypes.IssueStatus) sharedtypes.Issue {
+	t.Helper()
+	var issue sharedtypes.Issue
+	k.call(t, protocol.MethodIssueChangeStatus, shareddto.ChangeIssueStatusRequest{
+		ID:     issueID,
+		Status: status,
+	}, &issue)
+	return issue
+}
+
+func listIssues(t *testing.T, k *testKernel, streamID int64) []sharedtypes.Issue {
+	t.Helper()
+	var issues []sharedtypes.Issue
+	k.call(t, protocol.MethodIssueList, shareddto.ListIssuesQuery{StreamID: streamID}, &issues)
+	return issues
 }

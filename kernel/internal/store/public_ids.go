@@ -15,7 +15,9 @@ func ensurePublicIDColumn(ctx context.Context, db *bun.DB, table string) error {
 	if err != nil {
 		return err
 	}
-	defer rows.Close()
+	defer func() {
+		_ = rows.Close()
+	}()
 
 	var (
 		cid       int

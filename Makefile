@@ -4,7 +4,7 @@ PROJECT_DESCRIPTION := Local-first work kernel, TUI, and shared contracts
 GO ?= go
 GOCACHE ?= /tmp/crona-go-cache
 
-.PHONY: help meta build test fmt vet run-kernel run-tui install-kernel install-tui seed-dev clear-dev release
+.PHONY: help meta build test fmt vet lint install-lint run-kernel run-tui install-kernel install-tui seed-dev clear-dev release
 
 help:
 	@printf "%s %s\n" "$(PROJECT_NAME)" "$(PROJECT_VERSION)"
@@ -14,6 +14,8 @@ help:
 	@printf "  make test            Run kernel tests\n"
 	@printf "  make fmt             Format the Go workspace\n"
 	@printf "  make vet             Vet the Go workspace\n"
+	@printf "  make lint            Run golangci-lint with repo config\n"
+	@printf "  make install-lint    Install golangci-lint into GOPATH/bin\n"
 	@printf "  make run-kernel      Run the kernel daemon\n"
 	@printf "  make run-tui         Run the terminal UI\n"
 	@printf "  make install-kernel  Install crona-kernel into GOPATH/bin\n"
@@ -44,6 +46,12 @@ vet:
 	cd tui && GOCACHE=$(GOCACHE) $(GO) vet ./...
 	cd cli && GOCACHE=$(GOCACHE) $(GO) vet ./...
 
+lint:
+	sh ./scripts/lint.sh
+
+install-lint:
+	GOCACHE=$(GOCACHE) $(GO) install github.com/golangci/golangci-lint/cmd/golangci-lint@v1.64.8
+
 run-kernel:
 	cd kernel && GOCACHE=$(GOCACHE) $(GO) run ./cmd/crona-kernel
 
@@ -64,5 +72,5 @@ clear-dev:
 	sh ./scripts/dev_clear.sh
 
 release:
-	@if [ -z "$(VERSION)" ]; then echo "VERSION is required, e.g. make release VERSION=v0.1.0-beta.1"; exit 1; fi
+	@if [ -z "$(VERSION)" ]; then echo "VERSION is required, e.g. make release VERSION=v0.1.0-beta.2"; exit 1; fi
 	sh ./scripts/build_release.sh "$(VERSION)"

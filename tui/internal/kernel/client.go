@@ -2,14 +2,17 @@ package kernel
 
 import (
 	"bufio"
+	"bytes"
 	"crona/shared/protocol"
 	sharedtypes "crona/shared/types"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"crona/tui/internal/logger"
@@ -89,7 +92,7 @@ func isHealthy(info *Info) bool {
 	if err != nil {
 		return false
 	}
-	defer conn.Close()
+	defer func() { _ = conn.Close() }()
 	_ = conn.SetDeadline(time.Now().Add(2 * time.Second))
 
 	reqBody, err := json.Marshal(protocol.Request{
@@ -117,10 +120,148 @@ func isHealthy(info *Info) bool {
 	return health.DB && health.Status == "ok"
 }
 
+type launchCandidate struct {
+	name string
+	cmd  string
+	args []string
+	dir  string
+}
+
 func launch() error {
-	cmd := exec.Command("crona-kernel")
-	cmd.Stdout = nil
-	cmd.Stderr = nil
+	candidates := kernelLaunchCandidates()
+	if len(candidates) == 0 {
+		return errors.New("no kernel launcher candidates found")
+	}
+
+	failures := make([]string, 0, len(candidates))
+	for _, candidate := range candidates {
+		logger.Infof("Trying kernel launcher: %s", candidate.name)
+		if err := startKernel(candidate); err == nil {
+			return nil
+		} else {
+			failures = append(failures, fmt.Sprintf("%s: %v", candidate.name, err))
+		}
+	}
+
+	return errors.New(strings.Join(failures, "; "))
+}
+
+func kernelLaunchCandidates() []launchCandidate {
+	candidates := make([]launchCandidate, 0, 3)
+	seen := make(map[string]struct{})
+
+	add := func(candidate launchCandidate) {
+		key := candidate.cmd + "\x00" + strings.Join(candidate.args, "\x00") + "\x00" + candidate.dir
+		if _, ok := seen[key]; ok {
+			return
+		}
+		seen[key] = struct{}{}
+		candidates = append(candidates, candidate)
+	}
+
+	if exe, err := os.Executable(); err == nil {
+		sibling := filepath.Join(filepath.Dir(exe), "crona-kernel")
+		if info, err := os.Stat(sibling); err == nil && !info.IsDir() {
+			add(launchCandidate{
+				name: "sibling crona-kernel",
+				cmd:  sibling,
+			})
+		}
+	}
+
+	if pathCmd, err := exec.LookPath("crona-kernel"); err == nil {
+		add(launchCandidate{
+			name: "PATH crona-kernel",
+			cmd:  pathCmd,
+		})
+	}
+
+	if repoRoot, err := findRepoRoot(); err == nil {
+		if _, err := os.Stat(filepath.Join(repoRoot, "kernel", "cmd", "crona-kernel")); err == nil {
+			if goCmd, lookErr := exec.LookPath("go"); lookErr == nil {
+				add(launchCandidate{
+					name: "repo-local go run",
+					cmd:  goCmd,
+					args: []string{"run", "./kernel/cmd/crona-kernel"},
+					dir:  repoRoot,
+				})
+			}
+		}
+	}
+
+	return candidates
+}
+
+func findRepoRoot() (string, error) {
+	starts := make([]string, 0, 2)
+	if wd, err := os.Getwd(); err == nil {
+		starts = append(starts, wd)
+	}
+	if exe, err := os.Executable(); err == nil {
+		starts = append(starts, filepath.Dir(exe))
+	}
+
+	seen := make(map[string]struct{})
+	for _, start := range starts {
+		dir := start
+		for {
+			if _, ok := seen[dir]; ok {
+				break
+			}
+			seen[dir] = struct{}{}
+
+			if fileExists(filepath.Join(dir, "go.work")) && fileExists(filepath.Join(dir, "kernel", "cmd", "crona-kernel")) {
+				return dir, nil
+			}
+
+			parent := filepath.Dir(dir)
+			if parent == dir {
+				break
+			}
+			dir = parent
+		}
+	}
+
+	return "", errors.New("repo root not found")
+}
+
+func fileExists(path string) bool {
+	info, err := os.Stat(path)
+	return err == nil && !info.IsDir()
+}
+
+func startKernel(candidate launchCandidate) error {
+	cmd := exec.Command(candidate.cmd, candidate.args...)
+	cmd.Dir = candidate.dir
 	cmd.Stdin = nil
-	return cmd.Start()
+	cmd.Stdout = nil
+
+	var stderr bytes.Buffer
+	cmd.Stderr = &stderr
+
+	if err := cmd.Start(); err != nil {
+		return err
+	}
+
+	waitCh := make(chan error, 1)
+	go func() {
+		waitCh <- cmd.Wait()
+	}()
+
+	select {
+	case err := <-waitCh:
+		detail := strings.TrimSpace(stderr.String())
+		if err == nil {
+			if detail != "" {
+				return fmt.Errorf("exited immediately: %s", detail)
+			}
+			return errors.New("exited immediately")
+		}
+		if detail != "" {
+			return fmt.Errorf("%w: %s", err, detail)
+		}
+		return err
+	case <-time.After(300 * time.Millisecond):
+		return nil
+	}
 }

@@ -1,6 +1,6 @@
 # Roadmap
 
-## Phase 1 — TUI Core (Current)
+## Phase 1 — TUI Core
 Foundation for all future phases. TUI must be stable and usable before anything is layered on top.
 
 - [x] Go monorepo workspace (`kernel`, `tui`, `cli`, `shared`)
@@ -18,15 +18,19 @@ Foundation for all future phases. TUI must be stable and usable before anything 
 - [x] Settings view
 - [x] Session history view
 - [x] Temporary stash dialog with pop/apply
-- [ ] Layout finalization (panel locking)
-- [ ] Timer boundary recovery after kernel restart
-- [ ] Session amend (rewrite notes safely)
-- [ ] Stash + timer interaction rules
+- [x] Transient toast messages for errors and status updates
+- [x] Modal key-help overlay for small terminals
+- [x] Active-session safeguards for issue status changes
+- [x] SQLite single-connection kernel mode for stable local IPC writes
+- [x] Layout finalization (panel locking)
+- [x] Timer boundary recovery after kernel restart
+- [x] Session amend (rewrite notes safely)
+- [x] Stash + timer interaction rules
 
 **Phase 1 exit criteria**
 - [x] Session history view is implemented
 - [x] Stash management view is implemented
-- [ ] Core TUI flow is stable enough to move on to metrics and dashboards
+- [x] Core TUI flow is stable enough to move on to metrics and dashboards
 
 ## Phase 2 — Metrics & Check-ins
 Capture the non-work signals that give work data context, and build the summary primitives needed for richer dashboards.

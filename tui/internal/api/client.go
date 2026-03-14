@@ -32,7 +32,7 @@ func (c *Client) call(method string, params, out any) error {
 	if err != nil {
 		return err
 	}
-	defer conn.Close()
+	defer func() { _ = conn.Close() }()
 	_ = conn.SetDeadline(time.Now().Add(10 * time.Second))
 
 	var rawParams json.RawMessage
@@ -91,6 +91,17 @@ func (c *Client) CreateRepo(name string) (*Repo, error) {
 	return &out, c.call(protocol.MethodRepoCreate, shareddto.CreateRepoRequest{Name: name}, &out)
 }
 
+func (c *Client) UpdateRepo(id int64, name string) error {
+	return c.call(protocol.MethodRepoUpdate, map[string]any{
+		"id":   id,
+		"name": name,
+	}, nil)
+}
+
+func (c *Client) DeleteRepo(id int64) error {
+	return c.mustOK(protocol.MethodRepoDelete, shareddto.NumericIDRequest{ID: id})
+}
+
 func (c *Client) ListStreams(repoID int64) ([]Stream, error) {
 	var out []Stream
 	return out, c.call(protocol.MethodStreamList, shareddto.ListStreamsQuery{RepoID: repoID}, &out)
@@ -99,6 +110,17 @@ func (c *Client) ListStreams(repoID int64) ([]Stream, error) {
 func (c *Client) CreateStream(repoID int64, name string) (*Stream, error) {
 	var out Stream
 	return &out, c.call(protocol.MethodStreamCreate, shareddto.CreateStreamRequest{RepoID: repoID, Name: name}, &out)
+}
+
+func (c *Client) UpdateStream(id int64, name string) error {
+	return c.call(protocol.MethodStreamUpdate, shareddto.UpdateStreamRequest{
+		ID:   id,
+		Name: &name,
+	}, nil)
+}
+
+func (c *Client) DeleteStream(id int64) error {
+	return c.mustOK(protocol.MethodStreamDelete, shareddto.NumericIDRequest{ID: id})
 }
 
 func (c *Client) ListIssues(streamID int64) ([]Issue, error) {
@@ -127,6 +149,19 @@ func (c *Client) CreateIssue(streamID int64, title string, estimateMinutes *int,
 	return &out, c.call(protocol.MethodIssueCreate, body, &out)
 }
 
+func (c *Client) UpdateIssue(id int64, title string, estimateMinutes *int) error {
+	body := shareddto.UpdateIssueRequest{
+		ID:    id,
+		Title: &title,
+	}
+	body.EstimateMinutes = estimateMinutes
+	return c.call(protocol.MethodIssueUpdate, body, nil)
+}
+
+func (c *Client) DeleteIssue(id int64) error {
+	return c.mustOK(protocol.MethodIssueDelete, shareddto.NumericIDRequest{ID: id})
+}
+
 func (c *Client) ListSessionsByIssue(issueID int64) ([]Session, error) {
 	var out []Session
 	return out, c.call(protocol.MethodSessionListByIssue, shareddto.ListSessionsQuery{IssueID: &issueID}, &out)
@@ -141,6 +176,19 @@ func (c *Client) ListSessionHistory(limit int) ([]SessionHistoryEntry, error) {
 	return out, c.call(protocol.MethodSessionHistory, query, &out)
 }
 
+func (c *Client) GetSessionDetail(id string) (*SessionDetail, error) {
+	var out SessionDetail
+	return &out, c.call(protocol.MethodSessionDetail, shareddto.SessionIDRequest{ID: id}, &out)
+}
+
+func (c *Client) AmendSessionNote(id string, note string) error {
+	req := shareddto.AmendSessionNoteRequest{Note: note}
+	if strings.TrimSpace(id) != "" {
+		req.ID = &id
+	}
+	return c.call(protocol.MethodSessionAmendNote, req, nil)
+}
+
 func (c *Client) GetDailySummary(date string) (*DailyIssueSummary, error) {
 	var out DailyIssueSummary
 	query := shareddto.DailyIssueSummaryQuery{}
@@ -151,10 +199,11 @@ func (c *Client) GetDailySummary(date string) (*DailyIssueSummary, error) {
 	return &out, c.call(protocol.MethodIssueDailySummary, query, &out)
 }
 
-func (c *Client) ChangeIssueStatus(issueID int64, status string) error {
+func (c *Client) ChangeIssueStatus(issueID int64, status string, note *string) error {
 	return c.call(protocol.MethodIssueChangeStatus, shareddto.ChangeIssueStatusRequest{
 		ID:     issueID,
 		Status: sharedtypes.IssueStatus(status),
+		Note:   note,
 	}, nil)
 }
 
@@ -270,12 +319,8 @@ func (c *Client) ResumeTimer() error {
 	return c.call(protocol.MethodTimerResume, nil, nil)
 }
 
-func (c *Client) EndTimer(commitMessage string) error {
-	body := shareddto.EndSessionRequest{}
-	if commitMessage != "" {
-		body.CommitMessage = &commitMessage
-	}
-	return c.call(protocol.MethodTimerEnd, body, nil)
+func (c *Client) EndTimer(input shareddto.EndSessionRequest) error {
+	return c.call(protocol.MethodTimerEnd, input, nil)
 }
 
 func (c *Client) StashPush(note string) error {
@@ -293,6 +338,10 @@ func (c *Client) ListStashes() ([]Stash, error) {
 
 func (c *Client) ApplyStash(id string) error {
 	return c.mustOK(protocol.MethodStashApply, shareddto.StashIDRequest{ID: id})
+}
+
+func (c *Client) DropStash(id string) error {
+	return c.mustOK(protocol.MethodStashDrop, shareddto.StashIDRequest{ID: id})
 }
 
 func (c *Client) ListScratchpads() ([]ScratchPad, error) {

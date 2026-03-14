@@ -1,12 +1,12 @@
-package tui
+package app
 
 import (
+	sharedtypes "crona/shared/types"
 	"crona/tui/internal/api"
 
 	"github.com/charmbracelet/bubbles/textinput"
 	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/lipgloss"
 )
 
 // ---------- View / Pane types ----------
@@ -39,6 +39,13 @@ const (
 	PaneSettings    Pane = "settings"
 )
 
+type DefaultIssueSection string
+
+const (
+	DefaultIssueSectionOpen      DefaultIssueSection = "open"
+	DefaultIssueSectionCompleted DefaultIssueSection = "completed"
+)
+
 // viewPanes lists the focusable panes for each view.
 var viewPanes = map[View][]Pane{
 	ViewDefault:        {PaneIssues},
@@ -63,37 +70,6 @@ var viewDefaultPane = map[View]Pane{
 	ViewSettings:       PaneSettings,
 }
 
-// ---------- Messages ----------
-
-type reposLoadedMsg struct{ repos []api.Repo }
-type streamsLoadedMsg struct{ streams []api.Stream }
-type issuesLoadedMsg struct {
-	streamID int64
-	issues   []api.Issue
-}
-type allIssuesLoadedMsg struct{ issues []api.IssueWithMeta }
-type dailySummaryLoadedMsg struct{ summary *api.DailyIssueSummary }
-type issueSessionsLoadedMsg struct {
-	issueID  int64
-	sessions []api.Session
-}
-type sessionHistoryLoadedMsg struct{ sessions []api.SessionHistoryEntry }
-type scratchpadsLoadedMsg struct{ pads []api.ScratchPad }
-type stashesLoadedMsg struct{ stashes []api.Stash }
-type opsLoadedMsg struct{ ops []api.Op }
-type contextLoadedMsg struct{ ctx *api.ActiveContext }
-type timerLoadedMsg struct{ timer *api.TimerState }
-type healthLoadedMsg struct{ health *api.Health }
-type settingsLoadedMsg struct{ settings *api.CoreSettings }
-type kernelInfoLoadedMsg struct{ info *api.KernelInfo }
-type kernelEventMsg struct{ event api.KernelEvent }
-type kernelShutdownMsg struct{}
-type devSeededMsg struct{}
-type devClearedMsg struct{}
-type timerTickMsg struct{ seq int }
-type healthTickMsg struct{}
-type errMsg struct{ err error }
-
 // ---------- Model ----------
 
 type Model struct {
@@ -108,6 +84,7 @@ type Model struct {
 	pane    Pane
 	cursor  map[Pane]int
 	filters map[Pane]string
+	defaultIssueSection DefaultIssueSection
 
 	// pane-local search/filter input
 	filterEditing  bool
@@ -125,6 +102,7 @@ type Model struct {
 	dashboardDate  string
 	issueSessions  []api.Session
 	sessionHistory []api.SessionHistoryEntry
+	sessionDetail  *api.SessionDetail
 	scratchpads    []api.ScratchPad
 	stashes        []api.Stash
 	ops            []api.Op
@@ -148,25 +126,39 @@ type Model struct {
 	scratchpadViewport viewport.Model
 
 	// dialog state
-	dialog            string // "" | "create_scratchpad" | "confirm_delete" | "stash_list"
-	dialogInputs      []textinput.Model
-	dialogFocusIdx    int
-	dialogDeleteID    string // scratchpad id pending deletion
-	dialogIssueID     int64
-	dialogIssueStatus string
-	dialogRepoID      int64
-	dialogRepoName    string
-	dialogStreamID    int64
-	dialogStreamName  string
-	dialogRepoIndex   int
-	dialogStreamIndex int
-	dialogParent      string
-	dialogDateMonth   string
-	dialogDateCursor  string
-	dialogStashCursor int
+	dialog               string // "" | "create_scratchpad" | "confirm_delete" | "stash_list"
+	dialogInputs         []textinput.Model
+	dialogFocusIdx       int
+	dialogDeleteID       string // scratchpad id pending deletion
+	dialogDeleteKind     string
+	dialogDeleteLabel    string
+	dialogSessionID      string
+	dialogIssueID        int64
+	dialogIssueStatus    string
+	dialogRepoID         int64
+	dialogRepoName       string
+	dialogStreamID       int64
+	dialogStreamName     string
+	dialogRepoIndex      int
+	dialogStreamIndex    int
+	dialogParent         string
+	dialogDateMonth      string
+	dialogDateCursor     string
+	dialogStashCursor    int
+	dialogStatusItems    []sharedtypes.IssueStatus
+	dialogStatusCursor   int
+	dialogStatusLabel    string
+	dialogStatusRequired bool
 
 	// status / error flash
 	statusMsg string
+	statusSeq int
+	statusErr bool
+
+	// overlay help
+	helpOpen          bool
+	sessionDetailOpen bool
+	sessionDetailY    int
 }
 
 // SetEventChannel provides the kernel event channel from main before the program starts.
@@ -180,6 +172,7 @@ func New(socketPath, scratchDir string, env string, done chan struct{}) Model {
 		eventStop: done,
 		view:      ViewDefault,
 		pane:      PaneIssues,
+		defaultIssueSection: DefaultIssueSectionOpen,
 		cursor: map[Pane]int{
 			PaneRepos:       0,
 			PaneStreams:     0,
@@ -258,42 +251,4 @@ func (m *Model) currentOpsLimit() int {
 		return m.opsLimit
 	}
 	return m.defaultOpsLimit()
-}
-
-func (m Model) contentHeight() int {
-	headerH := 4
-	if m.width > 0 {
-		headerH = lipgloss.Height(m.renderHeader())
-	}
-	helpH := 1
-	if m.width > 0 {
-		helpH = lipgloss.Height(m.renderHelpBar())
-	}
-	availableHeight := m.height - headerH - helpH
-	if m.statusMsg != "" {
-		availableHeight--
-	}
-	if availableHeight < 4 {
-		availableHeight = 4
-	}
-	return availableHeight
-}
-
-func (m Model) sidebarWidth() int {
-	if m.width < 90 {
-		return 18
-	}
-	return 22
-}
-
-func (m Model) mainContentWidth() int {
-	width := m.width - m.sidebarWidth() - 4
-	if width < 40 {
-		return 40
-	}
-	return width
-}
-
-func (m Model) isDevMode() bool {
-	return m.kernelInfo != nil && m.kernelInfo.Env == "Dev"
 }

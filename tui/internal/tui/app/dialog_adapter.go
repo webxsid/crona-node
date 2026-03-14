@@ -1,0 +1,222 @@
+package app
+
+import (
+	dialogpkg "crona/tui/internal/tui/app/dialogs"
+	"os"
+	"os/exec"
+
+	tea "github.com/charmbracelet/bubbletea"
+)
+
+func (m Model) openCreateScratchpad() Model {
+	return m.withDialogState(dialogpkg.OpenCreateScratchpad(m.dialogState()))
+}
+func (m Model) openCreateRepoDialog() Model {
+	return m.withDialogState(dialogpkg.OpenCreateRepo(m.dialogState()))
+}
+func (m Model) openEditRepoDialog(repoID int64, name string) Model {
+	return m.withDialogState(dialogpkg.OpenEditRepo(m.dialogState(), repoID, name))
+}
+func (m Model) openCreateStreamDialog(repoID int64, repoName string) Model {
+	return m.withDialogState(dialogpkg.OpenCreateStream(m.dialogState(), repoID, repoName))
+}
+func (m Model) openEditStreamDialog(streamID, repoID int64, streamName, repoName string) Model {
+	return m.withDialogState(dialogpkg.OpenEditStream(m.dialogState(), streamID, repoID, streamName, repoName))
+}
+func (m Model) openCreateIssueMetaDialog(streamID int64, streamName, repoName string) Model {
+	return m.withDialogState(dialogpkg.OpenCreateIssueMeta(m.dialogState(), streamID, streamName, repoName))
+}
+func (m Model) openEditIssueDialog(issueID, streamID int64, title string, estimateMinutes *int, todoForDate *string) Model {
+	return m.withDialogState(dialogpkg.OpenEditIssue(m.dialogState(), issueID, streamID, title, estimateMinutes, todoForDate))
+}
+func (m Model) openCreateIssueDefaultDialog() Model {
+	return m.withDialogState(dialogpkg.OpenCreateIssueDefault(m.dialogState()))
+}
+func (m Model) openConfirmDelete(id string) Model {
+	return m.withDialogState(dialogpkg.OpenConfirmDelete(m.dialogState(), "scratchpad", id, "this scratchpad", 0, 0))
+}
+func (m Model) openConfirmDeleteEntity(kind, id, label string) Model {
+	return m.withDialogState(dialogpkg.OpenConfirmDelete(m.dialogState(), kind, id, label, m.dialogRepoID, m.dialogStreamID))
+}
+func (m Model) openStashListDialog() Model {
+	return m.withDialogState(dialogpkg.OpenStashList(m.dialogState()))
+}
+func (m Model) openIssueStatusDialog(status string) Model {
+	return m.withDialogState(dialogpkg.OpenIssueStatus(m.dialogState(), status))
+}
+func (m Model) openIssueStatusNoteDialog(status, label string, required bool) Model {
+	return m.withDialogState(dialogpkg.OpenIssueStatusNote(m.dialogState(), m.dialogIssueID, m.dialogStreamID, status, label, required))
+}
+func (m Model) openSessionMessageDialog(kind string) Model {
+	return m.withDialogState(dialogpkg.OpenSessionMessage(m.dialogState(), kind))
+}
+func (m Model) openIssueSessionTransitionDialog(issueID int64, status string) Model {
+	return m.withDialogState(dialogpkg.OpenIssueSessionTransition(m.dialogState(), issueID, status))
+}
+func (m Model) openAmendSessionDialog(sessionID string, commit string) Model {
+	return m.withDialogState(dialogpkg.OpenAmendSession(m.dialogState(), sessionID, commit))
+}
+func (m Model) openDatePickerDialog(parentDialog string, issueID int64, inputIndex int, initial *string) Model {
+	return m.withDialogState(dialogpkg.OpenDatePicker(m.dialogState(), parentDialog, issueID, inputIndex, initial, m.currentDashboardDate()))
+}
+
+func (m Model) updateDialog(msg tea.KeyMsg) (Model, tea.Cmd) {
+	state, action, status := dialogpkg.Update(m.dialogState(), m.dialogContext(), m.currentDashboardDate(), msg)
+	m = m.withDialogState(state)
+	if status != "" {
+		return m, m.setStatus(status, true)
+	}
+	if action == nil {
+		return m, nil
+	}
+	return m, m.dialogActionCmd(*action)
+}
+
+func (m Model) dialogContext() dialogpkg.UpdateContext {
+	ctx := dialogpkg.UpdateContext{
+		Repos:     m.repos,
+		Streams:   m.streams,
+		AllIssues: m.allIssues,
+		Context:   m.context,
+		Stashes:   m.stashes,
+	}
+	if issueID, streamID, _, _, ok := m.selectedIssue(); ok {
+		ctx.SelectedIssueID = issueID
+		ctx.SelectedStreamID = streamID
+		ctx.HasSelectedIssue = true
+	}
+	if issue := m.activeIssueWithMeta(); issue != nil {
+		ctx.ActiveIssueStream = issue.StreamID
+		ctx.HasActiveIssue = true
+	}
+	return ctx
+}
+
+func (m Model) dialogState() dialogpkg.State {
+	return dialogpkg.State{
+		Kind:            m.dialog,
+		Width:           m.width,
+		Inputs:          m.dialogInputs,
+		FocusIdx:        m.dialogFocusIdx,
+		DeleteID:        m.dialogDeleteID,
+		DeleteKind:      m.dialogDeleteKind,
+		DeleteLabel:     m.dialogDeleteLabel,
+		SessionID:       m.dialogSessionID,
+		IssueID:         m.dialogIssueID,
+		IssueStatus:     m.dialogIssueStatus,
+		RepoID:          m.dialogRepoID,
+		RepoName:        m.dialogRepoName,
+		StreamID:        m.dialogStreamID,
+		StreamName:      m.dialogStreamName,
+		RepoIndex:       m.dialogRepoIndex,
+		StreamIndex:     m.dialogStreamIndex,
+		Parent:          m.dialogParent,
+		DateMonthValue:  m.dialogDateMonth,
+		DateCursorValue: m.dialogDateCursor,
+		StashCursor:     m.dialogStashCursor,
+		StatusItems:     m.dialogStatusItems,
+		StatusCursor:    m.dialogStatusCursor,
+		StatusLabel:     m.dialogStatusLabel,
+		StatusRequired:  m.dialogStatusRequired,
+	}
+}
+
+func (m Model) withDialogState(state dialogpkg.State) Model {
+	m.dialog = state.Kind
+	m.dialogInputs = state.Inputs
+	m.dialogFocusIdx = state.FocusIdx
+	m.dialogDeleteID = state.DeleteID
+	m.dialogDeleteKind = state.DeleteKind
+	m.dialogDeleteLabel = state.DeleteLabel
+	m.dialogSessionID = state.SessionID
+	m.dialogIssueID = state.IssueID
+	m.dialogIssueStatus = state.IssueStatus
+	m.dialogRepoID = state.RepoID
+	m.dialogRepoName = state.RepoName
+	m.dialogStreamID = state.StreamID
+	m.dialogStreamName = state.StreamName
+	m.dialogRepoIndex = state.RepoIndex
+	m.dialogStreamIndex = state.StreamIndex
+	m.dialogParent = state.Parent
+	m.dialogDateMonth = state.DateMonthValue
+	m.dialogDateCursor = state.DateCursorValue
+	m.dialogStashCursor = state.StashCursor
+	m.dialogStatusItems = state.StatusItems
+	m.dialogStatusCursor = state.StatusCursor
+	m.dialogStatusLabel = state.StatusLabel
+	m.dialogStatusRequired = state.StatusRequired
+	return m
+}
+
+func (m Model) dialogActionCmd(action dialogpkg.Action) tea.Cmd {
+	switch action.Kind {
+	case "create_scratchpad":
+		return cmdCreateScratchpad(m.client, action.Name, action.Path)
+	case "create_repo":
+		return cmdCreateRepoOnly(m.client, action.Name)
+	case "edit_repo":
+		return cmdUpdateRepo(m.client, action.RepoID, action.Name)
+	case "create_stream":
+		return cmdCreateStreamOnly(m.client, action.RepoID, action.Name)
+	case "edit_stream":
+		return cmdUpdateStream(m.client, action.RepoID, action.StreamID, action.Name)
+	case "create_issue_meta":
+		return cmdCreateIssueOnly(m.client, action.StreamID, action.Title, action.Estimate, action.DueDate)
+	case "create_issue_default":
+		return cmdCreateIssueWithPath(m.client, action.RepoName, action.StreamName, action.Title, action.Estimate, action.DueDate)
+	case "edit_issue":
+		return cmdUpdateIssue(m.client, action.IssueID, action.StreamID, action.Title, action.Estimate, action.DueDate, m.currentDashboardDate())
+	case "delete":
+		switch action.Name {
+		case "repo":
+			return cmdDeleteRepo(m.client, dialogpkg.ParseNumericID(action.ID))
+		case "stream":
+			return cmdDeleteStream(m.client, action.RepoID, dialogpkg.ParseNumericID(action.ID))
+		case "issue":
+			return cmdDeleteIssue(m.client, dialogpkg.ParseNumericID(action.ID), action.StreamID, m.currentDashboardDate())
+		default:
+			return cmdDeleteScratchpad(m.client, action.ID)
+		}
+	case "apply_stash":
+		return cmdApplyStash(m.client, action.ID)
+	case "drop_stash":
+		return cmdDropStash(m.client, action.ID)
+	case "change_issue_status":
+		return cmdChangeIssueStatus(m.client, action.IssueID, action.Status, action.Note, action.StreamID, m.currentDashboardDate())
+	case "amend_session":
+		return cmdAmendSessionNote(m.client, action.ID, dialogpkg.ValueOrEmpty(action.Note))
+	case "end_session":
+		return cmdEndFocusSession(m.client, action.StreamID, m.currentDashboardDate(), action.Payload)
+	case "stash_session":
+		return cmdStashFocusSession(m.client, dialogpkg.ValueOrEmpty(action.Note))
+	case "change_issue_status_and_end_session":
+		return cmdChangeIssueStatusAndEndSession(m.client, action.IssueID, action.Status, action.Note, action.StreamID, m.currentDashboardDate(), action.Payload)
+	case "set_issue_todo_date":
+		due := ""
+		if action.DueDate != nil {
+			due = *action.DueDate
+		}
+		return cmdSetIssueTodoDate(m.client, action.IssueID, due, action.StreamID, m.currentDashboardDate())
+	default:
+		return nil
+	}
+}
+
+func openEditor(filePath string) tea.Cmd {
+	editor := os.Getenv("EDITOR")
+	if editor == "" {
+		editor = os.Getenv("VISUAL")
+	}
+	if editor == "" {
+		editor = "vi"
+	}
+	c := exec.Command(editor, filePath)
+	return tea.ExecProcess(c, func(err error) tea.Msg {
+		if err != nil {
+			return errMsg{err}
+		}
+		return editorDoneMsg{}
+	})
+}
+
+type editorDoneMsg struct{}

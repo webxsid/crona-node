@@ -75,6 +75,7 @@ func GenerateDefaultSessionNotes(input struct {
 	StreamID    *int64
 	IssueID     *int64
 	WorkSummary []string
+	Notes       *string
 }) string {
 	commit := "Work Session"
 	if input.Commit != nil && strings.TrimSpace(*input.Commit) != "" {
@@ -96,6 +97,9 @@ func GenerateDefaultSessionNotes(input struct {
 		sharedtypes.SessionNoteSectionCommit:  commit,
 		sharedtypes.SessionNoteSectionContext: strings.Join(contextLines, "\n"),
 		sharedtypes.SessionNoteSectionWork:    strings.Join(input.WorkSummary, "\n"),
+	}
+	if input.Notes != nil && strings.TrimSpace(*input.Notes) != "" {
+		sections[sharedtypes.SessionNoteSectionNotes] = strings.TrimSpace(*input.Notes)
 	}
 	return Serialize(sections)
 }

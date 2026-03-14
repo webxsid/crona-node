@@ -35,10 +35,13 @@ func CreateIssue(ctx context.Context, c *core.Context, input struct {
 		ID:              nextID,
 		StreamID:        input.StreamID,
 		Title:           strings.TrimSpace(input.Title),
-		Status:          sharedtypes.IssueStatusTodo,
+		Status:          sharedtypes.IssueStatusBacklog,
 		EstimateMinutes: input.EstimateMinutes,
 		Notes:           input.Notes,
 		TodoForDate:     input.TodoForDate,
+	}
+	if input.TodoForDate != nil && strings.TrimSpace(*input.TodoForDate) != "" {
+		issue.Status = sharedtypes.IssueStatusPlanned
 	}
 	now := c.Now()
 	created, err := c.Issues.Create(ctx, issue, c.UserID, now)
@@ -111,7 +114,11 @@ func UpdateIssue(ctx context.Context, c *core.Context, issueID int64, updates st
 	return updated, nil
 }
 
-func ChangeIssueStatus(ctx context.Context, c *core.Context, issueID int64, nextStatus sharedtypes.IssueStatus) (*sharedtypes.Issue, error) {
+func ChangeIssueStatus(ctx context.Context, c *core.Context, issueID int64, nextStatus sharedtypes.IssueStatus, note *string) (*sharedtypes.Issue, error) {
+	return changeIssueStatus(ctx, c, issueID, nextStatus, note, false)
+}
+
+func changeIssueStatus(ctx context.Context, c *core.Context, issueID int64, nextStatus sharedtypes.IssueStatus, note *string, allowWhenActive bool) (*sharedtypes.Issue, error) {
 	issue, err := c.Issues.GetByID(ctx, issueID, c.UserID)
 	if err != nil {
 		return nil, err
@@ -119,24 +126,27 @@ func ChangeIssueStatus(ctx context.Context, c *core.Context, issueID int64, next
 	if issue == nil {
 		return nil, errors.New("issue not found")
 	}
-	allowed := map[sharedtypes.IssueStatus][]sharedtypes.IssueStatus{
-		sharedtypes.IssueStatusTodo:      {sharedtypes.IssueStatusActive, sharedtypes.IssueStatusAbandoned},
-		sharedtypes.IssueStatusActive:    {sharedtypes.IssueStatusDone, sharedtypes.IssueStatusTodo, sharedtypes.IssueStatusAbandoned},
-		sharedtypes.IssueStatusDone:      {sharedtypes.IssueStatusTodo},
-		sharedtypes.IssueStatusAbandoned: {sharedtypes.IssueStatusTodo},
+	activeSession, err := c.Sessions.GetActiveSession(ctx, c.UserID)
+	if err != nil {
+		return nil, err
 	}
-	valid := false
-	for _, candidate := range allowed[issue.Status] {
-		if candidate == nextStatus {
-			valid = true
-			break
-		}
+	if !allowWhenActive && activeSession != nil && activeSession.IssueID == issueID {
+		return nil, errors.New("cannot change issue status while a focus session is active")
 	}
-	if !valid {
+	currentStatus := sharedtypes.NormalizeIssueStatus(issue.Status)
+	nextStatus = sharedtypes.NormalizeIssueStatus(nextStatus)
+	if !sharedtypes.IsValidIssueTransition(currentStatus, nextStatus) {
 		return nil, errors.New("invalid status transition")
+	}
+	if nextStatus == sharedtypes.IssueStatusBlocked && (note == nil || strings.TrimSpace(*note) == "") {
+		return nil, errors.New("blocked status requires a blocker note")
+	}
+	if nextStatus == sharedtypes.IssueStatusAbandoned && (note == nil || strings.TrimSpace(*note) == "") {
+		return nil, errors.New("abandoned status requires a reason")
 	}
 
 	now := c.Now()
+	notes := appendIssueStatusNote(issue.Notes, now, currentStatus, nextStatus, note)
 	var completedAt *string
 	var abandonedAt *string
 	switch nextStatus {
@@ -144,6 +154,12 @@ func ChangeIssueStatus(ctx context.Context, c *core.Context, issueID int64, next
 		completedAt = &now
 	case sharedtypes.IssueStatusAbandoned:
 		abandonedAt = &now
+	}
+	if nextStatus != sharedtypes.IssueStatusDone {
+		completedAt = nil
+	}
+	if nextStatus != sharedtypes.IssueStatusAbandoned {
+		abandonedAt = nil
 	}
 
 	updated, err := c.Issues.Update(ctx, issueID, c.UserID, now, struct {
@@ -156,6 +172,7 @@ func ChangeIssueStatus(ctx context.Context, c *core.Context, issueID int64, next
 		AbandonedAt     store.Patch[string]
 	}{
 		Status:      store.Patch[sharedtypes.IssueStatus]{Set: true, Value: &nextStatus},
+		Notes:       store.Patch[string]{Set: notes != issue.Notes, Value: notes},
 		CompletedAt: store.Patch[string]{Set: true, Value: completedAt},
 		AbandonedAt: store.Patch[string]{Set: true, Value: abandonedAt},
 	})
@@ -167,7 +184,7 @@ func ChangeIssueStatus(ctx context.Context, c *core.Context, issueID int64, next
 		Entity:    sharedtypes.OpEntityIssue,
 		EntityID:  fmt.Sprintf("%d", issueID),
 		Action:    sharedtypes.OpActionUpdate,
-		Payload:   map[string]any{"status": nextStatus},
+		Payload:   map[string]any{"from": currentStatus, "to": nextStatus, "note": note},
 		Timestamp: now,
 		UserID:    c.UserID,
 		DeviceID:  c.DeviceID,
@@ -178,6 +195,27 @@ func ChangeIssueStatus(ctx context.Context, c *core.Context, issueID int64, next
 		emit(c, sharedtypes.EventTypeIssueUpdated, updated)
 	}
 	return updated, nil
+}
+
+func appendIssueStatusNote(existing *string, now string, from, to sharedtypes.IssueStatus, note *string) *string {
+	trimmedNote := ""
+	if note != nil {
+		trimmedNote = strings.TrimSpace(*note)
+	}
+	if trimmedNote == "" && to != sharedtypes.IssueStatusBlocked && to != sharedtypes.IssueStatusInReview {
+		return existing
+	}
+
+	entry := fmt.Sprintf("[%s] %s -> %s", now, from, to)
+	if trimmedNote != "" {
+		entry += ": " + trimmedNote
+	}
+
+	if existing == nil || strings.TrimSpace(*existing) == "" {
+		return &entry
+	}
+	merged := strings.TrimSpace(*existing) + "\n" + entry
+	return &merged
 }
 
 func DeleteIssue(ctx context.Context, c *core.Context, issueID int64) error {
@@ -227,7 +265,15 @@ func ListAllIssues(ctx context.Context, c *core.Context) ([]sharedtypes.IssueWit
 }
 
 func MarkIssueTodoForDate(ctx context.Context, c *core.Context, issueID int64, todoForDate string) (*sharedtypes.Issue, error) {
+	issue, err := c.Issues.GetByID(ctx, issueID, c.UserID)
+	if err != nil {
+		return nil, err
+	}
+	if issue == nil {
+		return nil, errors.New("issue not found")
+	}
 	now := c.Now()
+	nextStatus := sharedtypes.AutoStatusOnTodoAssigned(issue.Status)
 	updated, err := c.Issues.Update(ctx, issueID, c.UserID, now, struct {
 		Title           store.Patch[string]
 		Status          store.Patch[sharedtypes.IssueStatus]
@@ -237,6 +283,7 @@ func MarkIssueTodoForDate(ctx context.Context, c *core.Context, issueID int64, t
 		CompletedAt     store.Patch[string]
 		AbandonedAt     store.Patch[string]
 	}{
+		Status:      store.Patch[sharedtypes.IssueStatus]{Set: nextStatus != sharedtypes.NormalizeIssueStatus(issue.Status), Value: &nextStatus},
 		TodoForDate: store.Patch[string]{Set: true, Value: &todoForDate},
 	})
 	if err != nil {
@@ -247,7 +294,7 @@ func MarkIssueTodoForDate(ctx context.Context, c *core.Context, issueID int64, t
 		Entity:    sharedtypes.OpEntityIssue,
 		EntityID:  fmt.Sprintf("%d", issueID),
 		Action:    sharedtypes.OpActionUpdate,
-		Payload:   map[string]any{"todoForDate": todoForDate},
+		Payload:   map[string]any{"todoForDate": todoForDate, "status": nextStatus},
 		Timestamp: now,
 		UserID:    c.UserID,
 		DeviceID:  c.DeviceID,

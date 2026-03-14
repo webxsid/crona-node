@@ -37,7 +37,7 @@ func (r *IssueRepository) Create(ctx context.Context, issue sharedtypes.Issue, u
 		PublicID:        issue.ID,
 		StreamID:        streamInternalID,
 		Title:           issue.Title,
-		Status:          string(issue.Status),
+		Status:          string(sharedtypes.NormalizeIssueStatus(issue.Status)),
 		EstimateMinutes: issue.EstimateMinutes,
 		Notes:           issue.Notes,
 		TodoForDate:     issue.TodoForDate,
@@ -94,7 +94,7 @@ func (r *IssueRepository) ListByStream(ctx context.Context, streamID int64, user
 			ID:              row.PublicID,
 			StreamID:        row.StreamPublicID,
 			Title:           row.Title,
-			Status:          sharedtypes.IssueStatus(row.Status),
+			Status:          sharedtypes.NormalizeIssueStatus(sharedtypes.IssueStatus(row.Status)),
 			EstimateMinutes: row.EstimateMinutes,
 			Notes:           row.Notes,
 			TodoForDate:     row.TodoForDate,
@@ -147,7 +147,7 @@ func (r *IssueRepository) GetByID(ctx context.Context, issueID int64, userID str
 		ID:              item.PublicID,
 		StreamID:        item.StreamPublicID,
 		Title:           item.Title,
-		Status:          sharedtypes.IssueStatus(item.Status),
+		Status:          sharedtypes.NormalizeIssueStatus(sharedtypes.IssueStatus(item.Status)),
 		EstimateMinutes: item.EstimateMinutes,
 		Notes:           item.Notes,
 		TodoForDate:     item.TodoForDate,
@@ -220,7 +220,7 @@ func (r *IssueRepository) ListAll(ctx context.Context, userID string) ([]sharedt
 				ID:              row.PublicID,
 				StreamID:        row.StreamPublicID,
 				Title:           row.Title,
-				Status:          sharedtypes.IssueStatus(row.Status),
+				Status:          sharedtypes.NormalizeIssueStatus(sharedtypes.IssueStatus(row.Status)),
 				EstimateMinutes: row.EstimateMinutes,
 				Notes:           row.Notes,
 				TodoForDate:     row.TodoForDate,
@@ -273,7 +273,7 @@ func (r *IssueRepository) ListDeletedByStream(ctx context.Context, streamID int6
 			ID:              row.PublicID,
 			StreamID:        row.StreamPublicID,
 			Title:           row.Title,
-			Status:          sharedtypes.IssueStatus(row.Status),
+			Status:          sharedtypes.NormalizeIssueStatus(sharedtypes.IssueStatus(row.Status)),
 			EstimateMinutes: row.EstimateMinutes,
 			Notes:           row.Notes,
 			TodoForDate:     row.TodoForDate,
@@ -322,7 +322,7 @@ func (r *IssueRepository) ListByTodoForDate(ctx context.Context, todoForDate str
 			ID:              row.PublicID,
 			StreamID:        row.StreamPublicID,
 			Title:           row.Title,
-			Status:          sharedtypes.IssueStatus(row.Status),
+			Status:          sharedtypes.NormalizeIssueStatus(sharedtypes.IssueStatus(row.Status)),
 			EstimateMinutes: row.EstimateMinutes,
 			Notes:           row.Notes,
 			TodoForDate:     row.TodoForDate,
@@ -352,7 +352,7 @@ func (r *IssueRepository) Update(ctx context.Context, issueID int64, userID stri
 		q = q.Set("title = ?", *updates.Title.Value)
 	}
 	if updates.Status.Set && updates.Status.Value != nil {
-		q = q.Set("status = ?", string(*updates.Status.Value))
+		q = q.Set("status = ?", string(sharedtypes.NormalizeIssueStatus(*updates.Status.Value)))
 	}
 	if updates.EstimateMinutes.Set {
 		if updates.EstimateMinutes.Value == nil {

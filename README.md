@@ -13,7 +13,7 @@ The current beta ships as two binaries:
 End users do not need Go installed. The installer downloads the correct TUI and kernel pair for the current machine.
 
 ```bash
-curl -fsSL https://github.com/webxsid/crona-node/releases/download/v0.1.0-beta.1/install-crona-tui.sh | sh
+curl -fsSL https://github.com/webxsid/crona-node/releases/download/v0.1.0-beta.2/install-crona-tui.sh | sh
 ```
 
 By default this installs into `~/.local/bin`.
@@ -160,8 +160,15 @@ The root [`Makefile`](/Users/sm2101/Projects/crona-node/Makefile) replaces the o
 make help
 make build
 make test
+make lint
 make seed-dev
 make clear-dev
+```
+
+Install the linter once with:
+
+```bash
+make install-lint
 ```
 
 ### Run Kernel
@@ -185,6 +192,22 @@ When `CRONA_ENV=Dev`, the TUI exposes global hotkeys for developer data manageme
 
 ```bash
 make test
+```
+
+### Lint
+
+```bash
+make lint
+```
+
+The repo ships with [`/.golangci.yml`](/Users/sm2101/Projects/crona-node/.golangci.yml) as the shared lint baseline.
+
+### Neovim
+
+For good Go highlighting in Neovim, make sure `gopls` is installed and semantic tokens are enabled in your editor config:
+
+```bash
+go install golang.org/x/tools/gopls@latest
 ```
 
 ## Design Principles

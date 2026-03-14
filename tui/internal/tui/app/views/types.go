@@ -1,0 +1,77 @@
+package views
+
+import (
+	"crona/tui/internal/api"
+
+	"github.com/charmbracelet/lipgloss"
+)
+
+type Theme struct {
+	ColorBlue    lipgloss.Color
+	ColorCyan    lipgloss.Color
+	ColorGreen   lipgloss.Color
+	ColorMagenta lipgloss.Color
+	ColorSubtle  lipgloss.Color
+	ColorYellow  lipgloss.Color
+	ColorRed     lipgloss.Color
+	ColorDim     lipgloss.Color
+	ColorWhite   lipgloss.Color
+
+	StyleActive    lipgloss.Style
+	StyleInactive  lipgloss.Style
+	StylePaneTitle lipgloss.Style
+	StyleDim       lipgloss.Style
+	StyleCursor    lipgloss.Style
+	StyleHeader    lipgloss.Style
+	StyleError     lipgloss.Style
+	StyleSelected  lipgloss.Style
+	StyleNormal    lipgloss.Style
+}
+
+type ContentState struct {
+	View           string
+	Pane           string
+	Width          int
+	Height         int
+	Cursors        map[string]int
+	Filters        map[string]string
+	ScratchpadOpen bool
+	Elapsed        int
+	DashboardDate  string
+	DefaultIssueSection string
+
+	Repos          []api.Repo
+	Streams        []api.Stream
+	Issues         []api.Issue
+	AllIssues      []api.IssueWithMeta
+	DailySummary   *api.DailyIssueSummary
+	IssueSessions  []api.Session
+	SessionHistory []api.SessionHistoryEntry
+	Scratchpads    []api.ScratchPad
+	Ops            []api.Op
+	Context        *api.ActiveContext
+	Timer          *api.TimerState
+	Health         *api.Health
+	Settings       *api.CoreSettings
+}
+
+func RenderContent(theme Theme, state ContentState) string {
+	switch state.View {
+	case "default":
+		return renderDefaultView(theme, state)
+	case "daily":
+		return renderDailyView(theme, state)
+	case "meta":
+		return renderMetaView(theme, state)
+	case "session_history", "session_active":
+		return renderSessionView(theme, state)
+	case "scratchpads":
+		return renderScratchpadPlaceholder(theme, state)
+	case "ops":
+		return renderOpsView(theme, state)
+	case "settings":
+		return renderSettingsView(theme, state)
+	default:
+		return ""
+	}
+}
