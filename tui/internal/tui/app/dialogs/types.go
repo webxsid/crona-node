@@ -43,6 +43,10 @@ type State struct {
 	StreamID            int64
 	StatusItems         []sharedtypes.IssueStatus
 	StatusCursor        int
+	ChoiceItems         []string
+	ChoiceCursor        int
+	Processing          bool
+	ProcessingLabel     string
 	StatusLabel         string
 	StatusRequired      bool
 	IssueStatus         string
@@ -79,7 +83,7 @@ func Render(theme Theme, state State) string {
 		return renderIssueDialog(theme, state)
 	case "end_session", "stash_session", "issue_session_transition", "stash_list", "amend_session":
 		return renderSessionDialog(theme, state)
-	case "confirm_delete", "pick_date", "create_scratchpad", "create_checkin", "edit_checkin", "view_entity", "complete_habit":
+	case "confirm_delete", "pick_date", "create_scratchpad", "create_checkin", "edit_checkin", "export_daily", "edit_export_reports_dir", "view_entity", "complete_habit":
 		return renderUtilityDialog(theme, state)
 	default:
 		return ""

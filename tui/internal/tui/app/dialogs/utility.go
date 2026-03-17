@@ -53,6 +53,47 @@ func renderUtilityDialog(theme Theme, state State) string {
 			theme.StyleDim.Render(hint),
 		}
 		return modal(theme, state.Width, 68, border, rows)
+	case "export_daily":
+		rows := []string{
+			theme.StylePaneTitle.Render("Export Daily Report"),
+			"",
+			theme.StyleDim.Render("Date"),
+			theme.StyleHeader.Render(state.CheckInDate),
+			"",
+		}
+		for i, item := range state.ChoiceItems {
+			line := "  " + item
+			if state.Processing {
+				rows = append(rows, theme.StyleDim.Render(line))
+				continue
+			}
+			if i == state.ChoiceCursor {
+				line = "▶ " + item
+				rows = append(rows, theme.StyleCursor.Render(line))
+				continue
+			}
+			rows = append(rows, theme.StyleNormal.Render(line))
+		}
+		rows = append(rows, "")
+		if state.Processing {
+			rows = append(rows, theme.StyleHeader.Render(state.ProcessingLabel))
+			rows = append(rows, "")
+			rows = append(rows, theme.StyleDim.Render("Please wait..."))
+		} else {
+			rows = append(rows, theme.StyleDim.Render("[j/k] move   [enter] choose   [esc] cancel"))
+		}
+		return modal(theme, state.Width, 54, theme.ColorGreen, rows)
+	case "edit_export_reports_dir":
+		rows := []string{
+			theme.StylePaneTitle.Render("Export Reports Directory"),
+			"",
+			theme.StyleDim.Render("Path"),
+			state.Inputs[0].View(),
+			"",
+			theme.StyleDim.Render("Use an absolute path or ~/..."),
+			theme.StyleDim.Render("[enter] save   [esc] cancel"),
+		}
+		return modal(theme, state.Width, 72, theme.ColorCyan, rows)
 	case "view_entity":
 		rows := []string{
 			theme.StylePaneTitle.Render(state.ViewTitle),

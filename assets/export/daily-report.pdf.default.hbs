@@ -1,0 +1,52 @@
+# Daily Report - {{date}}
+Generated at {{generatedAt}}
+## Snapshot
+- Day health: {{dayHealth}}
+- Issues: {{summary.issueDoneCount}} done / {{summary.totalIssues}} total
+- Habits: {{summary.habitsCompletedCount}} completed / {{summary.habitsDueCount}} due
+- Worked / estimated: {{summary.workedEstimate}}
+- Variance: {{summary.varianceTime}}
+{{#if checkIn}}- Mood / energy: {{checkIn.mood}} / 5, {{checkIn.energy}} / 5{{/if}}
+{{#if checkIn.sleepHours}}- Sleep: {{checkIn.sleepHours}}h{{/if}}
+{{#if metrics.burnout}}- Burnout: {{metrics.burnout.level}} ({{metrics.burnout.score}}){{/if}}
+{{#if highlights}}
+## Highlights
+{{#each highlights}}
+- {{this}}
+{{/each}}
+{{/if}}
+{{#if risks}}
+## Needs Attention
+{{#each risks}}
+- {{this}}
+{{/each}}
+{{/if}}
+## Habits
+{{#each habitRepos}}
+### {{name}}
+{{#each streams}}
+#### {{name}}
+{{#each completedHabits}}
+- {{name}} | {{status}}{{#if durationTime}} | {{durationTime}}{{/if}}
+{{/each}}
+{{#each pendingHabits}}
+- {{name}} | {{status}}{{#if durationTime}} | {{durationTime}}{{/if}}
+{{/each}}
+{{/each}}
+{{/each}}
+## Issues
+{{#each repos}}
+### {{name}}
+{{#each streams}}
+#### {{name}}
+{{#each completedIssues}}
+- #{{id}} {{title}} | {{status}} | {{workedEstimate}}
+{{/each}}
+{{#each activeIssues}}
+- #{{id}} {{title}} | {{status}} | {{workedEstimate}}
+{{/each}}
+{{#each attentionIssues}}
+- #{{id}} {{title}} | {{status}} | {{workedEstimate}}
+{{/each}}
+{{/each}}
+{{/each}}

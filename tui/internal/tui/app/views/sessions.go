@@ -10,6 +10,9 @@ import (
 )
 
 func renderSessionView(theme Theme, state ContentState) string {
+	if state.View == "session_history" {
+		return renderSessionHistory(theme, state)
+	}
 	if state.Timer == nil || state.Timer.State == "idle" {
 		return renderSessionHistory(theme, state)
 	}
@@ -25,11 +28,11 @@ func renderSessionView(theme Theme, state ContentState) string {
 	}
 	stateColor := theme.ColorGreen
 	timerTitle := "Focus Session"
-	timerHint := "p=pause  x=end  z=stash  ]=scratchpads"
+	timerHint := "p=pause  x=end  z=stash  [ ]=session/history/scratch"
 	if state.Timer.State == "paused" {
 		stateColor = theme.ColorYellow
 		timerTitle = "Paused For"
-		timerHint = "r=resume  x=end  z=stash  ]=scratchpads"
+		timerHint = "r=resume  x=end  z=stash  [ ]=session/history/scratch"
 		seg = "paused"
 	}
 	issueBox := "No issue selected"
@@ -57,7 +60,15 @@ func renderSessionHistory(theme Theme, state ContentState) string {
 	if inner < 1 {
 		inner = 1
 	}
-	lines := []string{theme.StylePaneTitle.Render("Session History"), theme.StyleDim.Render("Recent sessions across the workspace"), renderPaneActionLine(theme, state.Filters["sessions"], state.Width-6, paneActionsForState(theme, state, active))}
+	title := state.SessionHistoryTitle
+	if strings.TrimSpace(title) == "" {
+		title = "Session History"
+	}
+	subtitle := state.SessionHistoryMeta
+	if strings.TrimSpace(subtitle) == "" {
+		subtitle = "Recent sessions across the workspace"
+	}
+	lines := []string{theme.StylePaneTitle.Render(title), theme.StyleDim.Render(subtitle), renderPaneActionLine(theme, state.Filters["sessions"], state.Width-6, paneActionsForState(theme, state, active))}
 	if total == 0 {
 		lines = append(lines, theme.StyleDim.Render("No sessions recorded"))
 		return renderPaneBox(theme, active, state.Width, state.Height, stringsJoin(lines))

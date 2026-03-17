@@ -8,6 +8,7 @@ import (
 
 	"crona/kernel/internal/core"
 	corecommands "crona/kernel/internal/core/commands"
+	"crona/kernel/internal/export"
 	"crona/kernel/internal/events"
 	"crona/kernel/internal/ipc"
 	"crona/kernel/internal/runtime"
@@ -62,6 +63,9 @@ func Run(ctx context.Context) error {
 	if err := commandCtx.InitDefaults(runCtx); err != nil {
 		return fmt.Errorf("init command defaults: %w", err)
 	}
+	if _, err := export.EnsureAssets(paths); err != nil {
+		return fmt.Errorf("ensure export assets: %w", err)
+	}
 
 	info := sharedtypes.KernelInfo{
 		PID:        os.Getpid(),
@@ -72,7 +76,7 @@ func Run(ctx context.Context) error {
 		Env:        appEnv.Mode,
 	}
 
-	server := ipc.NewServer(paths.SocketPath, NewHandler(startedAt, info, dbStore.Ping, commandCtx, bus, cancel, appEnv.Mode), logger)
+	server := ipc.NewServer(paths.SocketPath, NewHandler(startedAt, info, dbStore.Ping, commandCtx, bus, cancel, appEnv.Mode, paths), logger)
 	timer := corecommands.GetTimerService(commandCtx)
 	if err := timer.RecoverBoundary(runCtx); err != nil {
 		return fmt.Errorf("recover timer boundary: %w", err)

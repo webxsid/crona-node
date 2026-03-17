@@ -5,6 +5,8 @@ VERSION="__VERSION__"
 REPO="webxsid/crona-node"
 INSTALL_DIR="${CRONA_INSTALL_DIR:-$HOME/.local/bin}"
 VERSION_FILE="${INSTALL_DIR}/.crona-version"
+CRONA_HOME="${CRONA_HOME:-$HOME/.crona}"
+ASSETS_DIR="${CRONA_HOME}/assets/bundled"
 
 prompt_replace() {
   installed_version="$1"
@@ -71,8 +73,10 @@ ARCH="$(detect_arch)"
 BASE_URL="https://github.com/${REPO}/releases/download/${VERSION}"
 KERNEL_URL="${BASE_URL}/crona-kernel-${VERSION}-${OS}-${ARCH}"
 TUI_URL="${BASE_URL}/crona-tui-${VERSION}-${OS}-${ARCH}"
+ASSETS_URL="${BASE_URL}/crona-assets-${VERSION}.tar.gz"
 
 mkdir -p "${INSTALL_DIR}"
+mkdir -p "${ASSETS_DIR}"
 
 INSTALLED_VERSION=""
 if [ -f "${VERSION_FILE}" ]; then
@@ -86,15 +90,20 @@ fi
 echo "Installing Crona ${VERSION} to ${INSTALL_DIR}"
 curl -fsSL "${KERNEL_URL}" -o "${INSTALL_DIR}/crona-kernel.tmp"
 curl -fsSL "${TUI_URL}" -o "${INSTALL_DIR}/crona-tui.tmp"
+curl -fsSL "${ASSETS_URL}" -o "${ASSETS_DIR}/crona-assets.tmp.tar.gz"
 chmod +x "${INSTALL_DIR}/crona-kernel.tmp" "${INSTALL_DIR}/crona-tui.tmp"
 mv "${INSTALL_DIR}/crona-kernel.tmp" "${INSTALL_DIR}/crona-kernel"
 mv "${INSTALL_DIR}/crona-tui.tmp" "${INSTALL_DIR}/crona-tui"
+rm -rf "${ASSETS_DIR}/export"
+tar -xzf "${ASSETS_DIR}/crona-assets.tmp.tar.gz" -C "${ASSETS_DIR}"
+rm -f "${ASSETS_DIR}/crona-assets.tmp.tar.gz"
 printf '%s\n' "${VERSION}" > "${VERSION_FILE}"
 
 echo
 echo "Installed:"
 echo "  ${INSTALL_DIR}/crona-kernel"
 echo "  ${INSTALL_DIR}/crona-tui"
+echo "  ${ASSETS_DIR}/export"
 echo
 echo "Make sure ${INSTALL_DIR} is on your PATH."
 echo "Then run:"

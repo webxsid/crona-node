@@ -25,23 +25,27 @@ const (
 	ViewScratch        View = "scratchpads"
 	ViewOps            View = "ops"
 	ViewWellbeing      View = "wellbeing"
+	ViewExportDaily    View = "export_daily"
+	ViewConfig         View = "config"
 	ViewSettings       View = "settings"
 )
 
 // viewOrder only includes the tab-switchable views.
-var viewOrder = []View{ViewSessionHistory, ViewDaily, ViewWellbeing, ViewDefault, ViewMeta, ViewScratch, ViewOps, ViewSettings}
+var viewOrder = []View{ViewSessionHistory, ViewDaily, ViewWellbeing, ViewExportDaily, ViewDefault, ViewMeta, ViewScratch, ViewOps, ViewConfig, ViewSettings}
 
 type Pane string
 
 const (
-	PaneRepos       Pane = "repos"
-	PaneStreams     Pane = "streams"
-	PaneIssues      Pane = "issues"
-	PaneHabits      Pane = "habits"
-	PaneSessions    Pane = "sessions"
-	PaneScratchpads Pane = "scratchpads"
-	PaneOps         Pane = "ops"
-	PaneSettings    Pane = "settings"
+	PaneRepos         Pane = "repos"
+	PaneStreams       Pane = "streams"
+	PaneIssues        Pane = "issues"
+	PaneHabits        Pane = "habits"
+	PaneSessions      Pane = "sessions"
+	PaneScratchpads   Pane = "scratchpads"
+	PaneOps           Pane = "ops"
+	PaneExportReports Pane = "export_reports"
+	PaneConfig        Pane = "config"
+	PaneSettings      Pane = "settings"
 )
 
 type DefaultIssueSection string
@@ -61,6 +65,8 @@ var viewPanes = map[View][]Pane{
 	ViewScratch:        {PaneScratchpads},
 	ViewOps:            {PaneOps},
 	ViewWellbeing:      {},
+	ViewExportDaily:    {PaneExportReports},
+	ViewConfig:         {PaneConfig},
 	ViewSettings:       {PaneSettings},
 }
 
@@ -74,6 +80,8 @@ var viewDefaultPane = map[View]Pane{
 	ViewScratch:        PaneScratchpads,
 	ViewOps:            PaneOps,
 	ViewWellbeing:      PaneIssues,
+	ViewExportDaily:    PaneExportReports,
+	ViewConfig:         PaneConfig,
 	ViewSettings:       PaneSettings,
 }
 
@@ -114,6 +122,8 @@ type Model struct {
 	metricsRange   []api.DailyMetricsDay
 	metricsRollup  *api.MetricsRollup
 	streaks        *api.StreakSummary
+	exportAssets   *api.ExportAssetStatus
+	exportReports  []api.ExportReportFile
 	issueSessions  []api.Session
 	sessionHistory []api.SessionHistoryEntry
 	sessionDetail  *api.SessionDetail
@@ -140,38 +150,42 @@ type Model struct {
 	scratchpadViewport viewport.Model
 
 	// dialog state
-	dialog               string // "" | "create_scratchpad" | "confirm_delete" | "stash_list"
-	dialogInputs         []textinput.Model
-	dialogDescription    textarea.Model
-	dialogDescriptionOn  bool
-	dialogDescriptionIdx int
-	dialogFocusIdx       int
-	dialogDeleteID       string // scratchpad id pending deletion
-	dialogDeleteKind     string
-	dialogDeleteLabel    string
-	dialogSessionID      string
-	dialogIssueID        int64
-	dialogHabitID        int64
-	dialogIssueStatus    string
-	dialogCheckInDate    string
-	dialogRepoID         int64
-	dialogRepoName       string
-	dialogStreamID       int64
-	dialogStreamName     string
-	dialogRepoIndex      int
-	dialogStreamIndex    int
-	dialogParent         string
-	dialogDateMonth      string
-	dialogDateCursor     string
-	dialogStashCursor    int
-	dialogStatusItems    []sharedtypes.IssueStatus
-	dialogStatusCursor   int
-	dialogStatusLabel    string
-	dialogStatusRequired bool
-	dialogViewTitle      string
-	dialogViewName       string
-	dialogViewMeta       string
-	dialogViewBody       string
+	dialog                string // "" | "create_scratchpad" | "confirm_delete" | "stash_list"
+	dialogInputs          []textinput.Model
+	dialogDescription     textarea.Model
+	dialogDescriptionOn   bool
+	dialogDescriptionIdx  int
+	dialogFocusIdx        int
+	dialogDeleteID        string // scratchpad id pending deletion
+	dialogDeleteKind      string
+	dialogDeleteLabel     string
+	dialogSessionID       string
+	dialogIssueID         int64
+	dialogHabitID         int64
+	dialogIssueStatus     string
+	dialogCheckInDate     string
+	dialogRepoID          int64
+	dialogRepoName        string
+	dialogStreamID        int64
+	dialogStreamName      string
+	dialogRepoIndex       int
+	dialogStreamIndex     int
+	dialogParent          string
+	dialogDateMonth       string
+	dialogDateCursor      string
+	dialogStashCursor     int
+	dialogStatusItems     []sharedtypes.IssueStatus
+	dialogStatusCursor    int
+	dialogChoiceItems     []string
+	dialogChoiceCursor    int
+	dialogProcessing      bool
+	dialogProcessingLabel string
+	dialogStatusLabel     string
+	dialogStatusRequired  bool
+	dialogViewTitle       string
+	dialogViewName        string
+	dialogViewMeta        string
+	dialogViewBody        string
 
 	// status / error flash
 	statusMsg string
@@ -197,24 +211,28 @@ func New(socketPath, scratchDir string, env string, done chan struct{}) Model {
 		pane:                PaneIssues,
 		defaultIssueSection: DefaultIssueSectionOpen,
 		cursor: map[Pane]int{
-			PaneRepos:       0,
-			PaneStreams:     0,
-			PaneIssues:      0,
-			PaneHabits:      0,
-			PaneSessions:    0,
-			PaneScratchpads: 0,
-			PaneOps:         0,
-			PaneSettings:    0,
+			PaneRepos:         0,
+			PaneStreams:       0,
+			PaneIssues:        0,
+			PaneHabits:        0,
+			PaneSessions:      0,
+			PaneScratchpads:   0,
+			PaneOps:           0,
+			PaneExportReports: 0,
+			PaneConfig:        0,
+			PaneSettings:      0,
 		},
 		filters: map[Pane]string{
-			PaneRepos:       "",
-			PaneStreams:     "",
-			PaneIssues:      "",
-			PaneHabits:      "",
-			PaneSessions:    "",
-			PaneScratchpads: "",
-			PaneOps:         "",
-			PaneSettings:    "",
+			PaneRepos:         "",
+			PaneStreams:       "",
+			PaneIssues:        "",
+			PaneHabits:        "",
+			PaneSessions:      "",
+			PaneScratchpads:   "",
+			PaneOps:           "",
+			PaneExportReports: "",
+			PaneConfig:        "",
+			PaneSettings:      "",
 		},
 		kernelInfo: &api.KernelInfo{Env: env},
 	}
@@ -232,7 +250,7 @@ func (m Model) Init() tea.Cmd {
 		loadDueHabits(m.client, time.Now().Format("2006-01-02")),
 		loadDailySummary(m.client, ""),
 		loadWellbeing(m.client, time.Now().Format("2006-01-02")),
-		loadSessionHistory(m.client, 200),
+		loadSessionHistoryForModel(m, 200),
 		loadScratchpads(m.client),
 		loadOps(m.client, m.currentOpsLimit()),
 		loadContext(m.client),
@@ -240,6 +258,8 @@ func (m Model) Init() tea.Cmd {
 		loadHealth(m.client),
 		loadSettings(m.client),
 		loadKernelInfo(m.client),
+		loadExportAssets(m.client),
+		loadExportReports(m.client),
 		healthTickAfter(),
 		waitForEvent(eventChannel),
 	)

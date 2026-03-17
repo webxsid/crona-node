@@ -98,6 +98,61 @@ func (m Model) activeIssueWithMeta() *api.IssueWithMeta {
 	return m.issueMetaByID(issueID)
 }
 
+func (m Model) activeTimerIssueID() *int64 {
+	if m.timer != nil && m.timer.IssueID != nil && *m.timer.IssueID > 0 {
+		return m.timer.IssueID
+	}
+	return nil
+}
+
+func (m Model) sessionHistoryScopeIssueID() *int64 {
+	if issueID := m.activeTimerIssueID(); issueID != nil {
+		return issueID
+	}
+	return nil
+}
+
+func (m Model) isSessionHistoryScopedToActiveIssue() bool {
+	return m.sessionHistoryScopeIssueID() != nil
+}
+
+func (m Model) sessionHistoryTitle() string {
+	if issueID := m.sessionHistoryScopeIssueID(); issueID != nil {
+		if issue := m.issueMetaByID(*issueID); issue != nil {
+			return fmt.Sprintf("Session History For #%d %s", issue.ID, issue.Title)
+		}
+		return fmt.Sprintf("Session History For Issue #%d", *issueID)
+	}
+	return "Session History"
+}
+
+func (m Model) sessionHistorySubtitle() string {
+	if issueID := m.sessionHistoryScopeIssueID(); issueID != nil {
+		if issue := m.issueMetaByID(*issueID); issue != nil {
+			return fmt.Sprintf("Previous sessions for the active issue in [%s/%s]", issue.RepoName, issue.StreamName)
+		}
+		return "Previous sessions for the active issue"
+	}
+	return "Recent sessions across the workspace"
+}
+
+func (m Model) nextActiveSessionView(dir int) View {
+	views := []View{ViewSessionActive, ViewSessionHistory, ViewScratch}
+	current := ViewSessionActive
+	for _, candidate := range views {
+		if m.view == candidate {
+			current = candidate
+			break
+		}
+	}
+	for i, candidate := range views {
+		if candidate == current {
+			return views[(i+dir+len(views))%len(views)]
+		}
+	}
+	return ViewSessionActive
+}
+
 func (m Model) issueMetaByID(issueID int64) *api.IssueWithMeta {
 	for i := range m.allIssues {
 		if m.allIssues[i].ID == issueID {
@@ -339,4 +394,145 @@ func (m Model) updateSessionDetailOverlay(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m.openAmendSessionDialog(m.sessionDetail.ID, sessionCommit(m.sessionDetail)), nil
 	}
 	return m, nil
+}
+
+type configItem struct {
+	label       string
+	value       string
+	path        string
+	detailTitle string
+	detailMeta  string
+	detailBody  string
+	editable    bool
+	mutable     bool
+	actionHint  string
+}
+
+func (m Model) configItems() []configItem {
+	if m.exportAssets == nil {
+		return nil
+	}
+	updateState := "up to date"
+	if m.exportAssets.DefaultUpdateAvailable {
+		updateState = "new default available"
+	}
+	customized := "default"
+	if m.exportAssets.UserTemplateCustomized {
+		customized = "customized"
+	}
+	return []configItem{
+		{
+			label:       "Daily report template",
+			value:       customized,
+			path:        m.exportAssets.TemplatePath,
+			detailTitle: "Daily Report Template",
+			detailMeta:  "Engine hbs   Source " + m.exportAssets.ActiveTemplateSource + "   State " + customized,
+			detailBody:  "Path\n" + m.exportAssets.TemplatePath + "\n\nPress e to open in $EDITOR.\nPress r to replace it with the bundled default.",
+			editable:    true,
+		},
+		{
+			label:       "PDF report template",
+			value:       pdfTemplateStateLabel(m.exportAssets),
+			path:        m.exportAssets.PDFTemplatePath,
+			detailTitle: "PDF Report Template",
+			detailMeta:  "Engine hbs   Source " + m.exportAssets.PDFTemplateSource + "   State " + pdfTemplateStateLabel(m.exportAssets),
+			detailBody:  "Path\n" + m.exportAssets.PDFTemplatePath + "\n\nPress e to open in $EDITOR.\nPress r to replace it with the bundled default.",
+			editable:    true,
+		},
+		{
+			label:       "Template variables docs",
+			value:       m.exportAssets.TemplateDocsPath,
+			path:        m.exportAssets.TemplateDocsPath,
+			detailTitle: "Template Variable Docs",
+			detailMeta:  "Source runtime docs",
+			detailBody:  "Path\n" + m.exportAssets.TemplateDocsPath + "\n\nPress e to open in $EDITOR.",
+			editable:    true,
+		},
+		{
+			label:       "Reports directory",
+			value:       m.exportAssets.ReportsDir,
+			detailTitle: "Daily Report Output",
+			detailMeta:  reportsDirMeta(m.exportAssets),
+			detailBody:  "Generated Markdown reports are written under\n" + m.exportAssets.ReportsDir + "\n\nDefault\n" + m.exportAssets.DefaultReportsDir + "\n\nPress c to change the directory.\nPress r to restore the default directory.",
+			mutable:     true,
+			actionHint:  "change dir",
+		},
+		{
+			label:       "Template update status",
+			value:       updateState,
+			detailTitle: "Template Update Status",
+			detailMeta:  "Bundled " + truncate(m.exportAssets.BundledTemplatePath, 48),
+			detailBody:  "Current default hash\n" + m.exportAssets.CurrentDefaultHash + "\n\nBase hash\n" + m.exportAssets.TemplateBaseHash + "\n\nPress r to replace the user template with the current bundled default.",
+		},
+		{
+			label:       "PDF renderer",
+			value:       pdfRendererStateLabel(m.exportAssets),
+			detailTitle: "PDF Renderer",
+			detailMeta:  "External renderer discovery",
+			detailBody:  pdfRendererDetailBody(m.exportAssets),
+		},
+	}
+}
+
+func reportsDirMeta(status *api.ExportAssetStatus) string {
+	if status == nil {
+		return ""
+	}
+	if status.ReportsDirCustomized {
+		return "Mode file export   Source custom"
+	}
+	return "Mode file export   Source default"
+}
+
+func pdfTemplateStateLabel(status *api.ExportAssetStatus) string {
+	if status == nil {
+		return ""
+	}
+	if status.PDFTemplateCustomized {
+		return "customized"
+	}
+	return "default"
+}
+
+func pdfRendererStateLabel(status *api.ExportAssetStatus) string {
+	if status == nil {
+		return ""
+	}
+	if status.PDFRendererAvailable {
+		return status.PDFRendererName
+	}
+	return "unavailable"
+}
+
+func pdfRendererDetailBody(status *api.ExportAssetStatus) string {
+	if status == nil {
+		return ""
+	}
+	if !status.PDFRendererAvailable {
+		return "No supported PDF renderer detected.\n\nInstall pandoc with a supported PDF engine and press R in Config to rescan."
+	}
+	return "Renderer\n" + status.PDFRendererName + "\n\nPath\n" + status.PDFRendererPath + "\n\nPress R in Config to rescan available PDF tools."
+}
+
+func (m Model) selectedConfigItem() (configItem, bool) {
+	if m.view != ViewConfig || m.pane != PaneConfig {
+		return configItem{}, false
+	}
+	rawIdx := m.filteredIndexAtCursor(PaneConfig)
+	items := m.configItems()
+	if rawIdx < 0 || rawIdx >= len(items) {
+		return configItem{}, false
+	}
+	return items[rawIdx], true
+}
+
+func (m Model) selectedExportReport() (api.ExportReportFile, bool) {
+	if m.view != ViewExportDaily || m.pane != PaneExportReports {
+		return api.ExportReportFile{}, false
+	}
+	rawIdx := m.filteredIndexAtCursor(PaneExportReports)
+	if rawIdx < 0 || rawIdx >= len(m.exportReports) {
+		return api.ExportReportFile{}, false
+	}
+	return m.exportReports[rawIdx], true
 }

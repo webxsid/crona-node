@@ -79,6 +79,14 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case streaksLoadedMsg:
 		m.streaks = msg.streaks
 		return m, nil
+	case exportAssetsLoadedMsg:
+		m.exportAssets = msg.assets
+		m.clampFiltered(PaneConfig)
+		return m, loadExportReports(m.client)
+	case exportReportsLoadedMsg:
+		m.exportReports = msg.reports
+		m.clampFiltered(PaneExportReports)
+		return m, nil
 	case issueSessionsLoadedMsg:
 		var activeIssueID int64
 		if m.context != nil && m.context.IssueID != nil {
@@ -155,7 +163,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.elapsed = 0
 		m.timerTickSeq++
 		if m.timer != nil && m.timer.State != "idle" {
-			if m.view != ViewScratch {
+			if m.view != ViewScratch && m.view != ViewSessionHistory {
 				m.view = ViewSessionActive
 			}
 			m.pane = viewDefaultPane[m.view]
@@ -163,15 +171,16 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.view = ViewDaily
 			m.pane = viewDefaultPane[m.view]
 		}
+		historyCmd := loadSessionHistoryForModel(m, 200)
 		if m.timer != nil && m.timer.IssueID != nil {
 			if m.context == nil || m.context.IssueID == nil || *m.context.IssueID != *m.timer.IssueID {
-				return m, tea.Batch(loadIssueSessions(m.client, *m.timer.IssueID), tickAfter(m.timerTickSeq))
+				return m, tea.Batch(loadIssueSessions(m.client, *m.timer.IssueID), historyCmd, tickAfter(m.timerTickSeq))
 			}
 		}
 		if m.timer != nil && m.timer.State != "idle" {
-			return m, tickAfter(m.timerTickSeq)
+			return m, tea.Batch(historyCmd, tickAfter(m.timerTickSeq))
 		}
-		return m, nil
+		return m, historyCmd
 	case healthLoadedMsg:
 		m.health = msg.health
 		return m, nil
@@ -198,15 +207,15 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		cmd := m.setStatus("Dev seed loaded", false)
 		m.view = ViewDaily
 		m.pane = viewDefaultPane[m.view]
-		return m, tea.Batch(cmd, loadKernelInfo(m.client), loadRepos(m.client), loadAllIssues(m.client), loadDueHabits(m.client, m.currentDashboardDate()), loadDailySummary(m.client, m.dashboardDate), loadWellbeing(m.client, m.currentWellbeingDate()), loadSessionHistory(m.client, 200), loadScratchpads(m.client), loadStashes(m.client), loadOps(m.client, m.currentOpsLimit()), loadContext(m.client), loadTimer(m.client), loadSettings(m.client))
+		return m, tea.Batch(cmd, loadKernelInfo(m.client), loadRepos(m.client), loadAllIssues(m.client), loadDueHabits(m.client, m.currentDashboardDate()), loadDailySummary(m.client, m.dashboardDate), loadWellbeing(m.client, m.currentWellbeingDate()), loadSessionHistoryForModel(m, 200), loadScratchpads(m.client), loadStashes(m.client), loadOps(m.client, m.currentOpsLimit()), loadContext(m.client), loadTimer(m.client), loadSettings(m.client))
 	case devClearedMsg:
 		cmd := m.setStatus("Dev data cleared", false)
 		m.view = ViewDaily
 		m.pane = viewDefaultPane[m.view]
-		return m, tea.Batch(cmd, loadKernelInfo(m.client), loadRepos(m.client), loadAllIssues(m.client), loadDueHabits(m.client, m.currentDashboardDate()), loadDailySummary(m.client, m.dashboardDate), loadWellbeing(m.client, m.currentWellbeingDate()), loadSessionHistory(m.client, 200), loadScratchpads(m.client), loadStashes(m.client), loadOps(m.client, m.currentOpsLimit()), loadContext(m.client), loadTimer(m.client), loadSettings(m.client))
+		return m, tea.Batch(cmd, loadKernelInfo(m.client), loadRepos(m.client), loadAllIssues(m.client), loadDueHabits(m.client, m.currentDashboardDate()), loadDailySummary(m.client, m.dashboardDate), loadWellbeing(m.client, m.currentWellbeingDate()), loadSessionHistoryForModel(m, 200), loadScratchpads(m.client), loadStashes(m.client), loadOps(m.client, m.currentOpsLimit()), loadContext(m.client), loadTimer(m.client), loadSettings(m.client))
 	case sessionAmendedMsg:
 		cmd := m.setStatus("Session amended", false)
-		return m, tea.Batch(cmd, loadSessionHistory(m.client, 200), loadSessionDetail(m.client, msg.id))
+		return m, tea.Batch(cmd, loadSessionHistoryForModel(m, 200), loadSessionDetail(m.client, msg.id))
 	case focusSessionChangedMsg:
 		cmds := []tea.Cmd{}
 		if msg.reloadContext {
@@ -232,6 +241,13 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		updated, cmd := handleKernelEvent(m, msg.event)
 		return updated, tea.Batch(cmd, waitForEvent(eventChannel))
 	case errMsg:
+		if m.dialog == "export_daily" && m.dialogProcessing {
+			m.dialog = ""
+			m.dialogChoiceItems = nil
+			m.dialogChoiceCursor = 0
+			m.dialogProcessing = false
+			m.dialogProcessingLabel = ""
+		}
 		logger.Errorf("update error: %v", msg.err)
 		return m, m.setStatus("Error: "+msg.err.Error(), true)
 	case openScratchpadMsg:
@@ -242,11 +258,39 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.scratchpadViewport.SetContent(msg.rendered)
 		return m, nil
 	case editorDoneMsg:
-		cmds := []tea.Cmd{loadScratchpads(m.client)}
+		cmds := []tea.Cmd{loadScratchpads(m.client), loadExportAssets(m.client)}
 		if m.scratchpadOpen && m.scratchpadMeta != nil {
 			cmds = append(cmds, cmdReloadScratchpad(m.client, m.scratchpadMeta, m.scratchpadRenderWidth()))
 		}
 		return m, tea.Batch(cmds...)
+	case dailyReportGeneratedMsg:
+		m.exportAssets = &msg.result.Assets
+		if m.dialog == "export_daily" && m.dialogProcessing {
+			m.dialog = ""
+			m.dialogChoiceItems = nil
+			m.dialogChoiceCursor = 0
+			m.dialogProcessing = false
+			m.dialogProcessingLabel = ""
+		}
+		if msg.result.OutputMode == "file" && msg.result.FilePath != nil {
+			label := "Report"
+			if msg.result.Format == "pdf" {
+				label = "PDF report"
+			} else if msg.result.Format == "markdown" {
+				label = "Markdown report"
+			}
+			return m, tea.Batch(m.setStatus(label+" written to "+*msg.result.FilePath, false), loadExportReports(m.client))
+		}
+		return m, nil
+	case clipboardCopiedMsg:
+		if m.dialog == "export_daily" && m.dialogProcessing {
+			m.dialog = ""
+			m.dialogChoiceItems = nil
+			m.dialogChoiceCursor = 0
+			m.dialogProcessing = false
+			m.dialogProcessingLabel = ""
+		}
+		return m, m.setStatus(msg.message, false)
 	case tea.KeyMsg:
 		if m.dialog != "" {
 			return m.updateDialog(msg)

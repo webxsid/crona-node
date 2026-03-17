@@ -141,15 +141,19 @@ func loadIssueSessions(c *api.Client, issueID int64) tea.Cmd {
 	}
 }
 
-func loadSessionHistory(c *api.Client, limit int) tea.Cmd {
+func loadSessionHistory(c *api.Client, issueID *int64, limit int) tea.Cmd {
 	return func() tea.Msg {
-		sessions, err := c.ListSessionHistory(limit)
+		sessions, err := c.ListSessionHistory(issueID, limit)
 		if err != nil {
 			logger.Errorf("loadSessionHistory: %v", err)
 			return errMsg{err}
 		}
 		return sessionHistoryLoadedMsg{sessions}
 	}
+}
+
+func loadSessionHistoryForModel(m Model, limit int) tea.Cmd {
+	return loadSessionHistory(m.client, m.sessionHistoryScopeIssueID(), limit)
 }
 
 func loadSessionDetail(c *api.Client, id string) tea.Cmd {
@@ -248,6 +252,28 @@ func loadKernelInfo(c *api.Client) tea.Cmd {
 			return errMsg{err}
 		}
 		return kernelInfoLoadedMsg{info}
+	}
+}
+
+func loadExportAssets(c *api.Client) tea.Cmd {
+	return func() tea.Msg {
+		assets, err := c.GetExportAssets()
+		if err != nil {
+			logger.Errorf("loadExportAssets: %v", err)
+			return errMsg{err}
+		}
+		return exportAssetsLoadedMsg{assets: assets}
+	}
+}
+
+func loadExportReports(c *api.Client) tea.Cmd {
+	return func() tea.Msg {
+		reports, err := c.ListExportReports()
+		if err != nil {
+			logger.Errorf("loadExportReports: %v", err)
+			return errMsg{err}
+		}
+		return exportReportsLoadedMsg{reports: reports}
 	}
 }
 

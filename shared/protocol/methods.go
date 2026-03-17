@@ -53,6 +53,12 @@ const (
 	MethodMetricsRollup  = "metrics.rollup"
 	MethodMetricsStreaks = "metrics.streaks"
 
+	MethodExportDaily         = "export.daily"
+	MethodExportAssetsGet     = "export.assets.get"
+	MethodExportReportsDirSet = "export.reports_dir.set"
+	MethodExportReportsList   = "export.reports.list"
+	MethodExportTemplateReset = "export.template.reset"
+
 	MethodSessionListByIssue = "session.list_by_issue"
 	MethodSessionGet         = "session.get"
 	MethodSessionDetail      = "session.detail"

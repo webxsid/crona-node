@@ -93,6 +93,18 @@ func (m *Model) paneItems(pane Pane) []string {
 			items = append(items, scratchpad.Name)
 		}
 		return items
+	case PaneConfig:
+		items := make([]string, 0)
+		for _, item := range m.configItems() {
+			items = append(items, item.label+" "+item.value)
+		}
+		return items
+	case PaneExportReports:
+		items := make([]string, 0, len(m.exportReports))
+		for _, report := range m.exportReports {
+			items = append(items, fmt.Sprintf("%s  [%s] %s", report.Date, report.Format, report.Name))
+		}
+		return items
 	case PaneSessions:
 		items := make([]string, 0, len(m.sessionHistory))
 		for _, session := range m.sessionHistory {

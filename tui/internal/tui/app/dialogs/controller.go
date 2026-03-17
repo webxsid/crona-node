@@ -74,6 +74,31 @@ func OpenCreateScratchpad(state State) State {
 	return state
 }
 
+func OpenExportDaily(state State, date string, includePDF bool) State {
+	state = Close(state)
+	state.Kind = "export_daily"
+	state.CheckInDate = date
+	state.ChoiceItems = []string{"Write Markdown file", "Copy to clipboard"}
+	if includePDF {
+		state.ChoiceItems = append(state.ChoiceItems, "Write PDF file")
+	}
+	state.ChoiceCursor = 0
+	return state
+}
+
+func OpenExportReportsDir(state State, current string) State {
+	input := textinput.New()
+	input.Placeholder = "Reports directory"
+	input.SetValue(strings.TrimSpace(current))
+	input.Focus()
+	input.CharLimit = 240
+	input.Width = 56
+	state = Close(state)
+	state.Kind = "edit_export_reports_dir"
+	state.Inputs = []textinput.Model{input}
+	return state
+}
+
 func OpenCreateCheckIn(state State, date string) State {
 	return openCheckInDialog(state, "create_checkin", date, nil)
 }
@@ -693,6 +718,12 @@ func Update(state State, ctx UpdateContext, currentDate string, msg tea.KeyMsg) 
 		return updateEditIssue(state, currentDate, msg)
 	case "create_checkin", "edit_checkin":
 		return updateCheckIn(state, msg)
+	case "export_daily":
+		return updateExportDaily(state, msg)
+	case "edit_export_reports_dir":
+		return updateSingleInput(state, msg, "Reports directory is required", func(value string) *Action {
+			return &Action{Kind: "set_export_reports_dir", Path: value}
+		})
 	case "view_entity":
 		return updateViewEntity(state, msg)
 	default:
@@ -1259,6 +1290,53 @@ func updateViewEntity(state State, msg tea.KeyMsg) (State, *Action, string) {
 	default:
 		return state, nil, ""
 	}
+}
+
+func updateExportDaily(state State, msg tea.KeyMsg) (State, *Action, string) {
+	switch msg.String() {
+	case "esc", "q":
+		if state.Processing {
+			return state, nil, ""
+		}
+		return Close(state), nil, ""
+	case "j", "down":
+		if state.Processing {
+			return state, nil, ""
+		}
+		if state.ChoiceCursor < len(state.ChoiceItems)-1 {
+			state.ChoiceCursor++
+		}
+	case "k", "up":
+		if state.Processing {
+			return state, nil, ""
+		}
+		if state.ChoiceCursor > 0 {
+			state.ChoiceCursor--
+		}
+	case "enter":
+		if state.Processing {
+			return state, nil, ""
+		}
+		if state.ChoiceCursor == 0 {
+			state.Processing = true
+			state.ProcessingLabel = "Generating markdown report..."
+			return state, &Action{Kind: "export_daily_file", CheckInDate: state.CheckInDate}, ""
+		}
+		if state.ChoiceCursor == 1 {
+			state.Processing = true
+			state.ProcessingLabel = "Copying markdown report..."
+			return state, &Action{Kind: "export_daily_clipboard", CheckInDate: state.CheckInDate}, ""
+		}
+		if state.ChoiceCursor == 2 {
+			state.Processing = true
+			state.ProcessingLabel = "Generating PDF report..."
+			return state, &Action{Kind: "export_daily_pdf_file", CheckInDate: state.CheckInDate}, ""
+		}
+		state.Processing = true
+		state.ProcessingLabel = "Processing export..."
+		return state, &Action{Kind: "export_daily_clipboard", CheckInDate: state.CheckInDate}, ""
+	}
+	return state, nil, ""
 }
 
 func updateHabitEditor(state State, msg tea.KeyMsg, kind string) (State, *Action, string) {

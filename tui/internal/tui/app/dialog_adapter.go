@@ -6,6 +6,7 @@ import (
 	dialogpkg "crona/tui/internal/tui/app/dialogs"
 	"os"
 	"os/exec"
+	"runtime"
 	"strings"
 
 	tea "github.com/charmbracelet/bubbletea"
@@ -130,6 +131,13 @@ func (m Model) openDatePickerDialog(parentDialog string, issueID int64, inputInd
 func (m Model) openViewEntityDialog(title string, name string, meta string, body string) Model {
 	return m.withDialogState(dialogpkg.OpenViewEntity(m.dialogState(), title, name, meta, body))
 }
+func (m Model) openExportDailyDialog() Model {
+	includePDF := m.exportAssets != nil && m.exportAssets.PDFRendererAvailable
+	return m.withDialogState(dialogpkg.OpenExportDaily(m.dialogState(), m.currentDashboardDate(), includePDF))
+}
+func (m Model) openExportReportsDirDialog(current string) Model {
+	return m.withDialogState(dialogpkg.OpenExportReportsDir(m.dialogState(), current))
+}
 
 func (m Model) updateDialog(msg tea.KeyMsg) (Model, tea.Cmd) {
 	state, action, status := dialogpkg.Update(m.dialogState(), m.dialogContext(), m.currentDashboardDate(), msg)
@@ -192,6 +200,10 @@ func (m Model) dialogState() dialogpkg.State {
 		StashCursor:        m.dialogStashCursor,
 		StatusItems:        m.dialogStatusItems,
 		StatusCursor:       m.dialogStatusCursor,
+		ChoiceItems:        m.dialogChoiceItems,
+		ChoiceCursor:       m.dialogChoiceCursor,
+		Processing:         m.dialogProcessing,
+		ProcessingLabel:    m.dialogProcessingLabel,
 		StatusLabel:        m.dialogStatusLabel,
 		StatusRequired:     m.dialogStatusRequired,
 		ViewTitle:          m.dialogViewTitle,
@@ -228,6 +240,10 @@ func (m Model) withDialogState(state dialogpkg.State) Model {
 	m.dialogStashCursor = state.StashCursor
 	m.dialogStatusItems = state.StatusItems
 	m.dialogStatusCursor = state.StatusCursor
+	m.dialogChoiceItems = state.ChoiceItems
+	m.dialogChoiceCursor = state.ChoiceCursor
+	m.dialogProcessing = state.Processing
+	m.dialogProcessingLabel = state.ProcessingLabel
 	m.dialogStatusLabel = state.StatusLabel
 	m.dialogStatusRequired = state.StatusRequired
 	m.dialogViewTitle = state.ViewTitle
@@ -273,6 +289,14 @@ func (m Model) dialogActionCmd(action dialogpkg.Action) tea.Cmd {
 		return cmdUpdateIssue(m.client, action.IssueID, action.StreamID, action.Title, action.Description, action.Estimate, action.DueDate, m.currentDashboardDate())
 	case "complete_habit":
 		return cmdSetHabitStatus(m.client, action.HabitID, action.CheckInDate, sharedtypes.HabitCompletionStatusCompleted, action.Estimate, action.Note)
+	case "export_daily_file":
+		return cmdGenerateDailyReport(m.client, action.CheckInDate, sharedtypes.ExportFormatMarkdown, sharedtypes.ExportOutputModeFile)
+	case "export_daily_clipboard":
+		return cmdCopyDailyReport(m.client, action.CheckInDate)
+	case "export_daily_pdf_file":
+		return cmdGenerateDailyReport(m.client, action.CheckInDate, sharedtypes.ExportFormatPDF, sharedtypes.ExportOutputModeFile)
+	case "set_export_reports_dir":
+		return cmdSetExportReportsDir(m.client, action.Path)
 	case "delete":
 		switch action.Name {
 		case "repo":
@@ -327,6 +351,28 @@ func openEditor(filePath string) tea.Cmd {
 			return errMsg{err}
 		}
 		return editorDoneMsg{}
+	})
+}
+
+func openDefaultViewer(filePath string) tea.Cmd {
+	var c *exec.Cmd
+	switch runtime.GOOS {
+	case "darwin":
+		c = exec.Command("open", filePath)
+	case "linux":
+		c = exec.Command("xdg-open", filePath)
+	case "windows":
+		c = exec.Command("cmd", "/c", "start", "", filePath)
+	default:
+		return func() tea.Msg {
+			return errMsg{err: os.ErrInvalid}
+		}
+	}
+	return tea.ExecProcess(c, func(err error) tea.Msg {
+		if err != nil {
+			return errMsg{err}
+		}
+		return nil
 	})
 }
 

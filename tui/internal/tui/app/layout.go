@@ -96,31 +96,44 @@ func (m Model) renderBody() string {
 }
 
 func (m Model) renderSidebar(width, height int) string {
+	if m.timer != nil && m.timer.State != "idle" {
+		lines := []string{
+			stylePaneTitle.Render("Active Session"),
+			styleDim.Render("[ / ] switch"),
+			"",
+			styleDim.Render("SESSION"),
+			m.renderSidebarItem(ViewSessionActive, "Session"),
+			m.renderSidebarItem(ViewSessionHistory, "History"),
+			m.renderSidebarItem(ViewScratch, "Scratchpads"),
+		}
+		return styleInactive.
+			Width(width-4).
+			Height(max(3, height-2)).
+			Padding(1, 1).
+			Render(strings.Join(lines, "\n"))
+	}
+
 	lines := []string{
 		stylePaneTitle.Render("Views"),
 		styleDim.Render("[ / ] switch"),
 		"",
-		styleDim.Render("SESSION"),
-		m.renderSidebarItem(ViewSessionHistory, "History"),
-		"",
 		styleDim.Render("DASHBOARD"),
 		m.renderSidebarItem(ViewDaily, "Daily"),
 		m.renderSidebarItem(ViewWellbeing, "Wellbeing"),
+		"",
+		styleDim.Render("EXPORT"),
+		m.renderSidebarItem(ViewExportDaily, "Daily Exports"),
 		"",
 		styleDim.Render("WORKSPACE"),
 		m.renderSidebarItem(ViewDefault, "Issues"),
 		m.renderSidebarItem(ViewMeta, "Meta"),
 		m.renderSidebarItem(ViewScratch, "Scratchpads"),
 		m.renderSidebarItem(ViewOps, "Ops"),
+		m.renderSidebarItem(ViewConfig, "Config"),
 		m.renderSidebarItem(ViewSettings, "Settings"),
-	}
-
-	if m.timer != nil && m.timer.State != "idle" {
-		lines = append([]string{
-			styleDim.Render("ACTIVE"),
-			m.renderSidebarItem(ViewSessionActive, "Session"),
-			"",
-		}, lines...)
+		"",
+		styleDim.Render("SESSION"),
+		m.renderSidebarItem(ViewSessionHistory, "History"),
 	}
 
 	return styleInactive.
@@ -216,7 +229,7 @@ func (m Model) renderHelpBar() string {
 	leftActions := actions
 	rightText := "[K] stop kernel   [q] quit"
 	if m.timer != nil && m.timer.State != "idle" {
-		rightText = "session/scratchpads only   [K] stop kernel   [q] quit"
+		rightText = "session/history/scratchpads only   [K] stop kernel   [q] quit"
 	}
 	rightText = devRightAction + "[K] stop kernel   [q] quit"
 	if m.width < 200 && len(leftActions) > 5 {
@@ -555,11 +568,11 @@ func dialogTheme() dialogs.Theme {
 
 func (m Model) viewContentState(width, height int) views.ContentState {
 	return views.ContentState{
-		View: string(m.view), Pane: string(m.pane), Width: width, Height: height, Elapsed: m.elapsed, DashboardDate: m.dashboardDate, WellbeingDate: m.currentWellbeingDate(), DefaultIssueSection: string(m.defaultIssueSection),
-		Cursors:        map[string]int{"repos": m.cursor[PaneRepos], "streams": m.cursor[PaneStreams], "issues": m.cursor[PaneIssues], "habits": m.cursor[PaneHabits], "sessions": m.cursor[PaneSessions], "scratchpads": m.cursor[PaneScratchpads], "ops": m.cursor[PaneOps], "settings": m.cursor[PaneSettings]},
-		Filters:        map[string]string{"repos": m.filters[PaneRepos], "streams": m.filters[PaneStreams], "issues": m.filters[PaneIssues], "habits": m.filters[PaneHabits], "sessions": m.filters[PaneSessions], "scratchpads": m.filters[PaneScratchpads], "ops": m.filters[PaneOps], "settings": m.filters[PaneSettings]},
+		View: string(m.view), Pane: string(m.pane), Width: width, Height: height, Elapsed: m.elapsed, DashboardDate: m.dashboardDate, WellbeingDate: m.currentWellbeingDate(), DefaultIssueSection: string(m.defaultIssueSection), SessionHistoryTitle: m.sessionHistoryTitle(), SessionHistoryMeta: m.sessionHistorySubtitle(),
+		Cursors:        map[string]int{"repos": m.cursor[PaneRepos], "streams": m.cursor[PaneStreams], "issues": m.cursor[PaneIssues], "habits": m.cursor[PaneHabits], "sessions": m.cursor[PaneSessions], "scratchpads": m.cursor[PaneScratchpads], "ops": m.cursor[PaneOps], "export_reports": m.cursor[PaneExportReports], "config": m.cursor[PaneConfig], "settings": m.cursor[PaneSettings]},
+		Filters:        map[string]string{"repos": m.filters[PaneRepos], "streams": m.filters[PaneStreams], "issues": m.filters[PaneIssues], "habits": m.filters[PaneHabits], "sessions": m.filters[PaneSessions], "scratchpads": m.filters[PaneScratchpads], "ops": m.filters[PaneOps], "export_reports": m.filters[PaneExportReports], "config": m.filters[PaneConfig], "settings": m.filters[PaneSettings]},
 		ScratchpadOpen: m.scratchpadOpen,
-		Repos:          m.repos, Streams: m.streams, Issues: m.issues, DailyIssues: m.dailyScopedIssues(), Habits: m.habits, AllIssues: m.allIssues, DefaultIssues: m.defaultScopedIssues(), DueHabits: m.filteredDueHabits(), DailySummary: m.dailySummary, DailyCheckIn: m.dailyCheckIn, MetricsRange: m.metricsRange, MetricsRollup: m.metricsRollup, Streaks: m.streaks, IssueSessions: m.issueSessions, SessionHistory: m.sessionHistory, Scratchpads: m.scratchpads, Ops: m.ops, Context: m.context, Timer: m.timer, Health: m.health, Settings: m.settings,
+		Repos:          m.repos, Streams: m.streams, Issues: m.issues, DailyIssues: m.dailyScopedIssues(), Habits: m.habits, AllIssues: m.allIssues, DefaultIssues: m.defaultScopedIssues(), DueHabits: m.filteredDueHabits(), DailySummary: m.dailySummary, DailyCheckIn: m.dailyCheckIn, MetricsRange: m.metricsRange, MetricsRollup: m.metricsRollup, Streaks: m.streaks, ExportAssets: m.exportAssets, ExportReports: m.exportReports, IssueSessions: m.issueSessions, SessionHistory: m.sessionHistory, Scratchpads: m.scratchpads, Ops: m.ops, Context: m.context, Timer: m.timer, Health: m.health, Settings: m.settings,
 	}
 }
 

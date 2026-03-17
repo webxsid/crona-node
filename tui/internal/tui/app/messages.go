@@ -21,6 +21,10 @@ type dailyCheckInLoadedMsg struct{ checkIn *api.DailyCheckIn }
 type metricsRangeLoadedMsg struct{ days []api.DailyMetricsDay }
 type metricsRollupLoadedMsg struct{ rollup *api.MetricsRollup }
 type streaksLoadedMsg struct{ streaks *api.StreakSummary }
+type exportAssetsLoadedMsg struct{ assets *api.ExportAssetStatus }
+type exportReportsLoadedMsg struct{ reports []api.ExportReportFile }
+type dailyReportGeneratedMsg struct{ result *api.DailyReportResult }
+type clipboardCopiedMsg struct{ message string }
 
 type issueSessionsLoadedMsg struct {
 	issueID  int64

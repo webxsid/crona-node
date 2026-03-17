@@ -22,6 +22,9 @@ func GlobalActions(theme Theme, state ActionsState) []string {
 			theme.StyleHeader.Render("[c]")+theme.StyleDim.Render(" context"),
 		)
 	}
+	if state.View == "daily" {
+		actions = append(actions, theme.StyleHeader.Render("[E]")+theme.StyleDim.Render(" export"))
+	}
 	return actions
 }
 
@@ -53,6 +56,24 @@ func ContextualActions(theme Theme, state ActionsState) []string {
 			theme.StyleHeader.Render("[g]") + theme.StyleDim.Render(" today"),
 			theme.StyleHeader.Render("[a/e]") + theme.StyleDim.Render(" check-in"),
 			theme.StyleHeader.Render("[d]") + theme.StyleDim.Render(" delete"),
+		}
+	}
+	if state.View == "config" {
+		actions := []string{
+			theme.StyleHeader.Render("[e]") + theme.StyleDim.Render(" edit/open"),
+			theme.StyleHeader.Render("[enter]") + theme.StyleDim.Render(" details"),
+			theme.StyleHeader.Render("[c]") + theme.StyleDim.Render(" change dir"),
+			theme.StyleHeader.Render("[R]") + theme.StyleDim.Render(" rescan tools"),
+		}
+		if state.TimerState == "" || state.TimerState == "idle" {
+			actions = append(actions, theme.StyleHeader.Render("[r]")+theme.StyleDim.Render(" reset selected"))
+		}
+		return actions
+	}
+	if state.View == "export_daily" {
+		return []string{
+			theme.StyleHeader.Render("[e]") + theme.StyleDim.Render(" open"),
+			theme.StyleHeader.Render("[enter]") + theme.StyleDim.Render(" details"),
 		}
 	}
 

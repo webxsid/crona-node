@@ -1,12 +1,14 @@
 package app
 
 import (
-	shareddto "crona/shared/dto"
-	sharedtypes "crona/shared/types"
+	"bytes"
 	"errors"
+	"os/exec"
 	"strings"
 	"time"
 
+	shareddto "crona/shared/dto"
+	sharedtypes "crona/shared/types"
 	"crona/tui/internal/api"
 	"crona/tui/internal/logger"
 
@@ -609,7 +611,7 @@ func cmdEndFocusSession(c *api.Client, streamID int64, dashboardDate string, end
 			logger.Errorf("EndTimer: %v", err)
 			return errMsg{err}
 		}
-		cmds := []tea.Cmd{loadAllIssues(c), loadDailySummary(c, dashboardDate), loadContext(c), loadTimer(c), loadSessionHistory(c, 200)}
+		cmds := []tea.Cmd{loadAllIssues(c), loadDailySummary(c, dashboardDate), loadContext(c), loadTimer(c), loadSessionHistory(c, nil, 200)}
 		if streamID != 0 {
 			cmds = append(cmds, loadIssues(c, streamID))
 		}
@@ -633,7 +635,7 @@ func cmdApplyStash(c *api.Client, id string) tea.Cmd {
 			logger.Errorf("ApplyStash: %v", err)
 			return errMsg{err}
 		}
-		return tea.Batch(loadStashes(c), loadContext(c), loadTimer(c), loadSessionHistory(c, 200))()
+		return tea.Batch(loadStashes(c), loadContext(c), loadTimer(c), loadSessionHistory(c, nil, 200))()
 	}
 }
 
@@ -650,4 +652,73 @@ func cmdDropStash(c *api.Client, id string) tea.Cmd {
 type focusSessionChangedMsg struct {
 	reloadContext bool
 	reloadTimer   bool
+}
+
+func cmdGenerateDailyReport(c *api.Client, date string, format sharedtypes.ExportFormat, mode sharedtypes.ExportOutputMode) tea.Cmd {
+	return func() tea.Msg {
+		result, err := c.GenerateDailyReport(date, format, mode)
+		if err != nil {
+			logger.Errorf("GenerateDailyReport: %v", err)
+			return errMsg{err}
+		}
+		return dailyReportGeneratedMsg{result: result}
+	}
+}
+
+func cmdCopyDailyReport(c *api.Client, date string) tea.Cmd {
+	return func() tea.Msg {
+		result, err := c.GenerateDailyReport(date, sharedtypes.ExportFormatMarkdown, sharedtypes.ExportOutputModeClipboard)
+		if err != nil {
+			logger.Errorf("GenerateDailyReport clipboard: %v", err)
+			return errMsg{err}
+		}
+		if err := copyToClipboard(result.Markdown); err != nil {
+			return errMsg{err}
+		}
+		return clipboardCopiedMsg{message: "Daily report copied to clipboard"}
+	}
+}
+
+func cmdResetExportTemplate(c *api.Client, format sharedtypes.ExportFormat) tea.Cmd {
+	return func() tea.Msg {
+		assets, err := c.ResetExportTemplate(format)
+		if err != nil {
+			logger.Errorf("ResetExportTemplate: %v", err)
+			return errMsg{err}
+		}
+		return exportAssetsLoadedMsg{assets: assets}
+	}
+}
+
+func cmdSetExportReportsDir(c *api.Client, path string) tea.Cmd {
+	return func() tea.Msg {
+		assets, err := c.SetExportReportsDir(path)
+		if err != nil {
+			logger.Errorf("SetExportReportsDir: %v", err)
+			return errMsg{err}
+		}
+		return exportAssetsLoadedMsg{assets: assets}
+	}
+}
+
+func copyToClipboard(text string) error {
+	commands := [][]string{
+		{"pbcopy"},
+		{"wl-copy"},
+		{"xclip", "-selection", "clipboard"},
+		{"xsel", "--clipboard", "--input"},
+		{"clip"},
+	}
+	for _, args := range commands {
+		path, err := exec.LookPath(args[0])
+		if err != nil {
+			continue
+		}
+		cmd := exec.Command(path, args[1:]...)
+		cmd.Stdin = bytes.NewBufferString(text)
+		if err := cmd.Run(); err == nil {
+			return nil
+		}
+	}
+	return errors.New("no supported clipboard command found")
 }

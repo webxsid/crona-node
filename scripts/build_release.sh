@@ -38,6 +38,14 @@ done
 sed "s/__VERSION__/${VERSION}/g" "${ROOT_DIR}/scripts/install_tui.sh.tmpl" > "${RELEASE_DIR}/install-crona-tui.sh"
 chmod +x "${RELEASE_DIR}/install-crona-tui.sh"
 
+mkdir -p "${RELEASE_DIR}/assets"
+cp -R "${ROOT_DIR}/assets/export" "${RELEASE_DIR}/assets/"
+(
+  cd "${RELEASE_DIR}/assets"
+  tar -czf "../crona-assets-${VERSION}.tar.gz" export
+)
+rm -rf "${RELEASE_DIR}/assets"
+
 (
   cd "${RELEASE_DIR}"
   shasum -a 256 ./* > checksums.txt

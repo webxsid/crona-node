@@ -116,6 +116,20 @@ type DateRangeQuery struct {
 	End   string `json:"end"`
 }
 
+type DailyReportRequest struct {
+	Date       string                 `json:"date"`
+	Format     types.ExportFormat     `json:"format,omitempty"`
+	OutputMode types.ExportOutputMode `json:"outputMode"`
+}
+
+type ExportReportsDirUpdateRequest struct {
+	ReportsDir string `json:"reportsDir"`
+}
+
+type ExportTemplateResetRequest struct {
+	Format types.ExportFormat `json:"format,omitempty"`
+}
+
 type CreateIssueRequest struct {
 	StreamID        int64   `json:"streamId"`
 	Title           string  `json:"title"`

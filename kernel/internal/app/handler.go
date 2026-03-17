@@ -10,6 +10,8 @@ import (
 	"crona/kernel/internal/core"
 	corecommands "crona/kernel/internal/core/commands"
 	"crona/kernel/internal/events"
+	"crona/kernel/internal/export"
+	"crona/kernel/internal/runtime"
 	"crona/kernel/internal/scratchfile"
 	"crona/kernel/internal/store"
 	"crona/shared/config"
@@ -27,9 +29,10 @@ type Handler struct {
 	timer     *corecommands.TimerService
 	shutdown  func()
 	envMode   string
+	paths     runtime.Paths
 }
 
-func NewHandler(startedAt string, info sharedtypes.KernelInfo, pingDB func(context.Context) error, coreCtx *core.Context, bus *events.Bus, shutdown func(), envMode string) *Handler {
+func NewHandler(startedAt string, info sharedtypes.KernelInfo, pingDB func(context.Context) error, coreCtx *core.Context, bus *events.Bus, shutdown func(), envMode string, paths runtime.Paths) *Handler {
 	return &Handler{
 		startedAt: startedAt,
 		info:      info,
@@ -39,6 +42,7 @@ func NewHandler(startedAt string, info sharedtypes.KernelInfo, pingDB func(conte
 		timer:     corecommands.GetTimerService(coreCtx),
 		shutdown:  shutdown,
 		envMode:   envMode,
+		paths:     paths,
 	}
 }
 
@@ -420,6 +424,26 @@ func (h *Handler) Handle(ctx context.Context, req protocol.Request) protocol.Res
 	case protocol.MethodMetricsStreaks:
 		return handle(req, func(input shareddto.DateRangeQuery) (any, error) {
 			return corecommands.ComputeMetricsStreaks(ctx, h.core, input.Start, input.End)
+		})
+	case protocol.MethodExportAssetsGet:
+		return h.handleNoParams(req, func() (any, error) {
+			return export.EnsureAssets(h.paths)
+		})
+	case protocol.MethodExportReportsDirSet:
+		return handle(req, func(input shareddto.ExportReportsDirUpdateRequest) (any, error) {
+			return export.SetReportsDir(h.paths, input.ReportsDir)
+		})
+	case protocol.MethodExportReportsList:
+		return h.handleNoParams(req, func() (any, error) {
+			return export.ListReports(h.paths)
+		})
+	case protocol.MethodExportTemplateReset:
+		return handle(req, func(input shareddto.ExportTemplateResetRequest) (any, error) {
+			return export.ResetTemplate(h.paths, input.Format)
+		})
+	case protocol.MethodExportDaily:
+		return handle(req, func(input shareddto.DailyReportRequest) (any, error) {
+			return export.GenerateDailyReportWithFormat(ctx, h.core, h.paths, input.Date, input.Format, input.OutputMode)
 		})
 
 	case protocol.MethodContextGet:

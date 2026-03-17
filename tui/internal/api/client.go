@@ -232,9 +232,12 @@ func (c *Client) ListSessionsByIssue(issueID int64) ([]Session, error) {
 	return out, c.call(protocol.MethodSessionListByIssue, shareddto.ListSessionsQuery{IssueID: &issueID}, &out)
 }
 
-func (c *Client) ListSessionHistory(limit int) ([]SessionHistoryEntry, error) {
+func (c *Client) ListSessionHistory(issueID *int64, limit int) ([]SessionHistoryEntry, error) {
 	var out []SessionHistoryEntry
 	query := shareddto.SessionHistoryQuery{}
+	if issueID != nil && *issueID > 0 {
+		query.IssueID = issueID
+	}
 	if limit > 0 {
 		query.Limit = &limit
 	}
@@ -319,6 +322,46 @@ func (c *Client) GetMetricsStreaks(start, end string) (*StreakSummary, error) {
 	if err := c.call(protocol.MethodMetricsStreaks, shareddto.DateRangeQuery{
 		Start: strings.TrimSpace(start),
 		End:   strings.TrimSpace(end),
+	}, &out); err != nil {
+		return nil, err
+	}
+	return &out, nil
+}
+
+func (c *Client) GetExportAssets() (*ExportAssetStatus, error) {
+	var out ExportAssetStatus
+	return &out, c.call(protocol.MethodExportAssetsGet, nil, &out)
+}
+
+func (c *Client) SetExportReportsDir(path string) (*ExportAssetStatus, error) {
+	var out ExportAssetStatus
+	if err := c.call(protocol.MethodExportReportsDirSet, shareddto.ExportReportsDirUpdateRequest{
+		ReportsDir: strings.TrimSpace(path),
+	}, &out); err != nil {
+		return nil, err
+	}
+	return &out, nil
+}
+
+func (c *Client) ListExportReports() ([]ExportReportFile, error) {
+	var out []ExportReportFile
+	return out, c.call(protocol.MethodExportReportsList, nil, &out)
+}
+
+func (c *Client) ResetExportTemplate(format sharedtypes.ExportFormat) (*ExportAssetStatus, error) {
+	var out ExportAssetStatus
+	if err := c.call(protocol.MethodExportTemplateReset, shareddto.ExportTemplateResetRequest{Format: format}, &out); err != nil {
+		return nil, err
+	}
+	return &out, nil
+}
+
+func (c *Client) GenerateDailyReport(date string, format sharedtypes.ExportFormat, mode sharedtypes.ExportOutputMode) (*DailyReportResult, error) {
+	var out DailyReportResult
+	if err := c.call(protocol.MethodExportDaily, shareddto.DailyReportRequest{
+		Date:       strings.TrimSpace(date),
+		Format:     format,
+		OutputMode: mode,
 	}, &out); err != nil {
 		return nil, err
 	}

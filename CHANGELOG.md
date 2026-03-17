@@ -11,18 +11,26 @@ All notable changes to **Crona** are documented here.
 - Daily dashboard habit lane with completion, failure, and optional duration logging.
 - Kernel metrics APIs for date-range rollups, burnout indicators, and focus/check-in streak summaries.
 - Kernel e2e coverage for daily check-ins, metrics, and persisted sort settings.
+- Daily export system with user-editable Handlebars templates, runtime asset management, and generated Markdown reports.
+- `Config` view for export templates, template docs, report-directory management, and PDF renderer visibility.
+- `Daily Exports` sidebar section and report browser for generated `.md` and `.pdf` files.
+- Dedicated PDF export template plus optional PDF file generation through runtime renderer detection.
 
 ### Changed
 - Daily dashboard now combines planned issues with due habits for the selected date.
 - Repo, stream, and issue ordering is now user-configurable through persisted sort settings in core settings.
 - Default issue scoping and create/checkout dialogs now prefill from the active repo/stream context when available.
 - Roadmap documentation now reflects the implemented Phase 2 check-ins, metrics, and habit work present in the current branch.
+- Daily export markdown now uses a glanceable snapshot-first layout with grouped issues/habits, derived highlights/risks, and formatted durations.
+- Active-session navigation now keeps session history accessible, scopes that history to the active issue, and reduces the sidebar to session-only views while focused.
+- Export configuration now persists a custom reports directory and refreshes export browser state after report generation.
 
 ### API / Core
 - Added kernel RPC methods for habit CRUD, habit completion/uncompletion/history, daily check-in CRUD/range, and metrics range/rollup/streak queries.
 - Added daily check-in persistence plus habit and habit-completion repositories to the SQLite kernel store.
 - Added shared domain types and DTOs for habits, check-ins, metrics rollups, streaks, and burnout indicators.
 - Added persisted `repoSort`, `streamSort`, and `issueSort` core settings that drive kernel list ordering.
+- Added kernel export RPC methods and shared contracts for export assets, template reset by format, report-directory updates, report listing, and format-aware daily export.
 
 ### Verification
 - `make build` passes for the current workspace.

@@ -470,3 +470,95 @@ type KernelInfo struct {
 	ScratchDir string `json:"scratchDir"`
 	Env        string `json:"env"`
 }
+
+type ExportOutputMode string
+
+const (
+	ExportOutputModeFile      ExportOutputMode = "file"
+	ExportOutputModeClipboard ExportOutputMode = "clipboard"
+)
+
+type ExportFormat string
+
+const (
+	ExportFormatMarkdown ExportFormat = "markdown"
+	ExportFormatPDF      ExportFormat = "pdf"
+)
+
+type DailyReportIssue struct {
+	IssueWithMeta
+	WorkedSeconds int `json:"workedSeconds"`
+}
+
+type DailyReportSession struct {
+	SessionHistoryEntry
+	RepoID     int64  `json:"repoId"`
+	RepoName   string `json:"repoName"`
+	StreamID   int64  `json:"streamId"`
+	StreamName string `json:"streamName"`
+	IssueTitle string `json:"issueTitle"`
+}
+
+type DailyReportData struct {
+	Date          string               `json:"date"`
+	GeneratedAt   string               `json:"generatedAt"`
+	Summary       DailyIssueSummary    `json:"summary"`
+	Issues        []DailyReportIssue   `json:"issues"`
+	Sessions      []DailyReportSession `json:"sessions"`
+	Habits        []HabitDailyItem     `json:"habits"`
+	CheckIn       *DailyCheckIn        `json:"checkIn,omitempty"`
+	Metrics       *DailyMetricsDay     `json:"metrics,omitempty"`
+	MetricsRollup *MetricsRollup       `json:"metricsRollup,omitempty"`
+	Streaks       *StreakSummary       `json:"streaks,omitempty"`
+}
+
+type ExportAssetStatus struct {
+	TemplatePath           string  `json:"templatePath"`
+	TemplateDocsPath       string  `json:"templateDocsPath"`
+	BundledTemplatePath    string  `json:"bundledTemplatePath"`
+	PDFTemplatePath        string  `json:"pdfTemplatePath"`
+	PDFBundledTemplatePath string  `json:"pdfBundledTemplatePath"`
+	ReportsDir             string  `json:"reportsDir"`
+	DefaultReportsDir      string  `json:"defaultReportsDir"`
+	ReportsDirCustomized   bool    `json:"reportsDirCustomized"`
+	UserTemplateExists     bool    `json:"userTemplateExists"`
+	UserTemplateCustomized bool    `json:"userTemplateCustomized"`
+	DefaultUpdateAvailable bool    `json:"defaultUpdateAvailable"`
+	PDFUserTemplateExists  bool    `json:"pdfUserTemplateExists"`
+	PDFTemplateCustomized  bool    `json:"pdfTemplateCustomized"`
+	PDFUpdateAvailable     bool    `json:"pdfUpdateAvailable"`
+	TemplateBaseHash       string  `json:"templateBaseHash"`
+	CurrentDefaultHash     string  `json:"currentDefaultHash"`
+	PDFTemplateBaseHash    string  `json:"pdfTemplateBaseHash"`
+	PDFCurrentDefaultHash  string  `json:"pdfCurrentDefaultHash"`
+	TemplateName           string  `json:"templateName"`
+	TemplateEngine         string  `json:"templateEngine"`
+	ActiveTemplateSource   string  `json:"activeTemplateSource"`
+	PDFTemplateName        string  `json:"pdfTemplateName"`
+	PDFTemplateEngine      string  `json:"pdfTemplateEngine"`
+	PDFTemplateSource      string  `json:"pdfTemplateSource"`
+	PDFRendererAvailable   bool    `json:"pdfRendererAvailable"`
+	PDFRendererName        string  `json:"pdfRendererName"`
+	PDFRendererPath        string  `json:"pdfRendererPath"`
+	LastSyncedAt           *string `json:"lastSyncedAt,omitempty"`
+	PDFLastSyncedAt        *string `json:"pdfLastSyncedAt,omitempty"`
+}
+
+type ExportReportFile struct {
+	Name       string `json:"name"`
+	Path       string `json:"path"`
+	Date       string `json:"date"`
+	Format     string `json:"format"`
+	SizeBytes  int64  `json:"sizeBytes"`
+	ModifiedAt string `json:"modifiedAt"`
+}
+
+type DailyReportResult struct {
+	Date       string            `json:"date"`
+	Format     ExportFormat      `json:"format"`
+	OutputMode ExportOutputMode  `json:"outputMode"`
+	Markdown   string            `json:"markdown"`
+	FilePath   *string           `json:"filePath,omitempty"`
+	Renderer   *string           `json:"renderer,omitempty"`
+	Assets     ExportAssetStatus `json:"assets"`
+}

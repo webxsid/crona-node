@@ -3,6 +3,8 @@ package app
 import (
 	sharedtypes "crona/shared/types"
 	"crona/tui/internal/logger"
+	"fmt"
+	"strings"
 
 	tea "github.com/charmbracelet/bubbletea"
 )
@@ -26,11 +28,7 @@ func (m Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		}
 	case "]":
 		if m.timer != nil && m.timer.State != "idle" {
-			if m.view == ViewSessionActive {
-				m.view = ViewScratch
-			} else {
-				m.view = ViewSessionActive
-			}
+			m.view = m.nextActiveSessionView(1)
 			m.pane = viewDefaultPane[m.view]
 			return m, nil
 		}
@@ -39,11 +37,7 @@ func (m Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m, nil
 	case "[":
 		if m.timer != nil && m.timer.State != "idle" {
-			if m.view == ViewScratch {
-				m.view = ViewSessionActive
-			} else {
-				m.view = ViewScratch
-			}
+			m.view = m.nextActiveSessionView(-1)
 			m.pane = viewDefaultPane[m.view]
 			return m, nil
 		}
@@ -71,6 +65,9 @@ func (m Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.pane = nextPane(m.view, m.pane, -1)
 		return m, nil
 	case "R":
+		if m.view == ViewConfig {
+			return m, tea.Batch(m.setStatus("Rescanning export tools...", false), loadExportAssets(m.client))
+		}
 		logger.Info("Kernel restart requested")
 		return m, nil
 	}
@@ -140,6 +137,14 @@ func (m Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			return m.adjustSelectedSetting(1)
 		}
 	}
+	if m.view == ViewConfig && key == "1" {
+		m.pane = PaneConfig
+		return m, nil
+	}
+	if m.view == ViewExportDaily && key == "1" {
+		m.pane = PaneExportReports
+		return m, nil
+	}
 
 	switch key {
 	case "f":
@@ -185,7 +190,17 @@ func (m Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			m.wellbeingDate = ""
 			return m, loadWellbeing(m.client, m.currentWellbeingDate())
 		}
+	case "E":
+		if m.view == ViewDaily && m.dialog == "" {
+			return m.openExportDailyDialog(), nil
+		}
 	case "c":
+		if m.view == ViewConfig && m.pane == PaneConfig {
+			if item, ok := m.selectedConfigItem(); ok && item.label == "Reports directory" && m.exportAssets != nil {
+				return m.openExportReportsDirDialog(m.exportAssets.ReportsDir), nil
+			}
+			return m, nil
+		}
 		if (m.view == ViewDefault && m.pane == PaneIssues) || m.view == ViewDaily {
 			return m.openCheckoutContextDialog(), nil
 		}
@@ -230,7 +245,7 @@ func (m Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			return m, loadOps(m.client, m.currentOpsLimit())
 		}
 	case "/":
-		if m.pane != PaneOps && m.pane != PaneIssues && m.pane != PaneHabits && m.pane != PaneRepos && m.pane != PaneStreams && m.pane != PaneScratchpads && m.pane != PaneSessions {
+		if m.pane != PaneOps && m.pane != PaneIssues && m.pane != PaneHabits && m.pane != PaneRepos && m.pane != PaneStreams && m.pane != PaneScratchpads && m.pane != PaneSessions && m.pane != PaneConfig && m.pane != PaneExportReports {
 			return m, nil
 		}
 		if m.pane == PaneScratchpads && m.scratchpadOpen {
@@ -247,6 +262,21 @@ func (m Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		}
 		return m.handleCreateAction()
 	case "e":
+		if m.view == ViewConfig && m.pane == PaneConfig {
+			if item, ok := m.selectedConfigItem(); ok && item.editable && strings.TrimSpace(item.path) != "" {
+				return m, openEditor(item.path)
+			}
+			return m, nil
+		}
+		if m.view == ViewExportDaily && m.pane == PaneExportReports {
+			if report, ok := m.selectedExportReport(); ok && strings.TrimSpace(report.Path) != "" {
+				if strings.EqualFold(report.Format, string(sharedtypes.ExportFormatPDF)) || strings.HasSuffix(strings.ToLower(report.Path), ".pdf") {
+					return m, openDefaultViewer(report.Path)
+				}
+				return m, openEditor(report.Path)
+			}
+			return m, nil
+		}
 		if m.view == ViewDaily && m.pane == PaneHabits {
 			if habit, ok := m.selectedDailyHabitRecord(); ok {
 				return m.openHabitCompletionDialog(habit.ID, m.currentDashboardDate(), habit.DurationMinutes, habit.Notes), nil
@@ -300,6 +330,20 @@ func (m Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			}
 		}
 	case "enter", "o":
+		if m.view == ViewConfig && m.pane == PaneConfig {
+			if item, ok := m.selectedConfigItem(); ok {
+				return m.openViewEntityDialog(item.detailTitle, item.label, item.detailMeta, item.detailBody), nil
+			}
+			return m, nil
+		}
+		if m.view == ViewExportDaily && m.pane == PaneExportReports {
+			if report, ok := m.selectedExportReport(); ok {
+				meta := fmt.Sprintf("Format %s   Modified %s", report.Format, report.ModifiedAt)
+				body := "Path\n" + report.Path + "\n\nSize\n" + fmt.Sprintf("%d bytes", report.SizeBytes)
+				return m.openViewEntityDialog("Export Report", report.Name, meta, body), nil
+			}
+			return m, nil
+		}
 		if m.view == ViewSessionHistory && m.pane == PaneSessions {
 			if entry, ok := m.selectedSessionHistoryEntry(); ok {
 				m.sessionDetailOpen = true
@@ -332,6 +376,20 @@ func (m Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 					return m, cmdUncompleteHabit(m.client, habit.ID, m.currentDashboardDate())
 				}
 				return m, cmdSetHabitStatus(m.client, habit.ID, m.currentDashboardDate(), sharedtypes.HabitCompletionStatusCompleted, nil, nil)
+			}
+		}
+	case "r":
+		if m.view == ViewConfig && m.exportAssets != nil {
+			if item, ok := m.selectedConfigItem(); ok {
+				if item.label == "Reports directory" && m.exportAssets.ReportsDirCustomized {
+					return m, cmdSetExportReportsDir(m.client, "")
+				}
+				if (item.label == "Daily report template" || item.label == "Template update status") && (m.exportAssets.DefaultUpdateAvailable || m.exportAssets.UserTemplateCustomized) {
+					return m, cmdResetExportTemplate(m.client, sharedtypes.ExportFormatMarkdown)
+				}
+				if item.label == "PDF report template" && (m.exportAssets.PDFUpdateAvailable || m.exportAssets.PDFTemplateCustomized) {
+					return m, cmdResetExportTemplate(m.client, sharedtypes.ExportFormatPDF)
+				}
 			}
 		}
 	}

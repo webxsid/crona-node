@@ -40,6 +40,8 @@ type ContentState struct {
 	DashboardDate       string
 	WellbeingDate       string
 	DefaultIssueSection string
+	SessionHistoryTitle string
+	SessionHistoryMeta  string
 
 	Repos          []api.Repo
 	Streams        []api.Stream
@@ -54,6 +56,8 @@ type ContentState struct {
 	MetricsRange   []api.DailyMetricsDay
 	MetricsRollup  *api.MetricsRollup
 	Streaks        *api.StreakSummary
+	ExportAssets   *api.ExportAssetStatus
+	ExportReports  []api.ExportReportFile
 	IssueSessions  []api.Session
 	SessionHistory []api.SessionHistoryEntry
 	Scratchpads    []api.ScratchPad
@@ -80,6 +84,10 @@ func RenderContent(theme Theme, state ContentState) string {
 		return renderOpsView(theme, state)
 	case "wellbeing":
 		return renderWellbeingView(theme, state)
+	case "config":
+		return renderConfigView(theme, state)
+	case "export_daily":
+		return renderExportDailyView(theme, state)
 	case "settings":
 		return renderSettingsView(theme, state)
 	default:

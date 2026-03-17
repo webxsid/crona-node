@@ -14,6 +14,10 @@ type Paths struct {
 	BaseDir       string
 	DBPath        string
 	ScratchDir    string
+	AssetsDir     string
+	BundledAssetsDir string
+	UserAssetsDir string
+	ReportsDir    string
 	LogsDir       string
 	InfoFile      string
 	SocketPath    string
@@ -28,11 +32,16 @@ func ResolvePaths() (Paths, error) {
 
 	base := filepath.Join(home, ".crona")
 	logs := filepath.Join(base, "logs")
+	assets := filepath.Join(base, "assets")
 
 	return Paths{
 		BaseDir:       base,
 		DBPath:        filepath.Join(base, "crona.db"),
 		ScratchDir:    filepath.Join(base, "scratch"),
+		AssetsDir:     assets,
+		BundledAssetsDir: filepath.Join(assets, "bundled"),
+		UserAssetsDir: filepath.Join(assets, "user"),
+		ReportsDir:    filepath.Join(base, "reports"),
 		LogsDir:       logs,
 		InfoFile:      filepath.Join(base, "kernel.json"),
 		SocketPath:    filepath.Join(base, "kernel.sock"),
@@ -44,6 +53,10 @@ func EnsurePaths(paths Paths) error {
 	for _, dir := range []string{
 		paths.BaseDir,
 		paths.ScratchDir,
+		paths.AssetsDir,
+		paths.BundledAssetsDir,
+		paths.UserAssetsDir,
+		paths.ReportsDir,
 		paths.LogsDir,
 		paths.CurrentLogDir,
 	} {

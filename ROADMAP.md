@@ -17,6 +17,8 @@ Foundation for all future phases. TUI must be stable and usable before anything 
 - [x] Terminal resize handling
 - [x] Settings view
 - [x] Session history view
+- [x] Active-session history access with issue-scoped session history
+- [x] Active-session sidebar reduction to session-only views
 - [x] Temporary stash dialog with pop/apply
 - [x] Transient toast messages for errors and status updates
 - [x] Modal key-help overlay for small terminals
@@ -91,11 +93,15 @@ Non-TUI interface for scripting, shell aliases, and integration with other tools
 ## Phase 5 — Exports & Reports
 Make work history reviewable and portable.
 
-- [ ] Daily log export (Markdown)
+- [x] Daily log export (Markdown)
+- [x] Editable export templates in runtime assets with bundled defaults and variable docs
+- [x] Config view for export templates, reports directory, and renderer status
+- [x] Export browser view with generated report listing
+- [x] Daily PDF export with dedicated template and runtime renderer detection
 - [ ] Weekly summary export
 - [ ] Session → Issue rollups
 - [ ] Repo-level time reports
-- [ ] Timeline view in TUI
+- [x] Timeline-like export report list in TUI
 - [ ] CSV export for external analysis
 
 ## Phase 6 — Multi-Device Sync

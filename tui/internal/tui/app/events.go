@@ -37,7 +37,7 @@ func handleKernelEvent(m Model, event api.KernelEvent) (Model, tea.Cmd) {
 	case "scratchpad.created", "scratchpad.updated", "scratchpad.deleted":
 		return m, loadScratchpads(m.client)
 	case "session.started", "session.stopped":
-		return m, tea.Batch(loadTimer(m.client), loadContext(m.client), loadSessionHistory(m.client, 200))
+		return m, tea.Batch(loadTimer(m.client), loadContext(m.client), loadSessionHistoryForModel(m, 200))
 	case "stash.created", "stash.applied", "stash.dropped":
 		return m, tea.Batch(loadStashes(m.client), loadContext(m.client), loadTimer(m.client))
 	case "context.repo.changed", "context.stream.changed", "context.issue.changed", "context.cleared":
@@ -69,15 +69,16 @@ func handleKernelEvent(m Model, event api.KernelEvent) (Model, tea.Cmd) {
 			m.elapsed = 0
 			m.timerTickSeq++
 			if timer.State != "idle" {
-				if m.view != ViewScratch {
+				if m.view != ViewScratch && m.view != ViewSessionHistory {
 					m.view = ViewSessionActive
 				}
 				m.pane = viewDefaultPane[m.view]
-				return m, tickAfter(m.timerTickSeq)
+				return m, tea.Batch(tickAfter(m.timerTickSeq), loadSessionHistoryForModel(m, 200))
 			} else if m.view == ViewSessionActive {
 				m.view = ViewDaily
 				m.pane = viewDefaultPane[m.view]
 			}
+			return m, loadSessionHistoryForModel(m, 200)
 		}
 	case "timer.boundary":
 		m.elapsed = 0

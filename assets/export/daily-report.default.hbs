@@ -1,0 +1,122 @@
+# Daily Report - {{date}}
+
+Generated at {{generatedAt}}
+
+## Daily Snapshot
+
+- Day health: {{dayHealth}}
+- Issues: {{summary.totalIssues}} total, {{summary.issueDoneCount}} done, {{summary.issueActiveCount}} active, {{summary.issueBlockedCount}} blocked, {{summary.issueAbandonedCount}} abandoned
+- Issue completion: {{summary.issueCompletion}}
+- Worked / estimated: {{summary.workedEstimate}}
+- Variance: {{summary.varianceTime}}
+- Habits: {{summary.habitsCompletedCount}} completed / {{summary.habitsDueCount}} due
+{{#if checkIn}}- Mood / energy: {{checkIn.mood}} / 5, {{checkIn.energy}} / 5{{/if}}
+{{#if checkIn.sleepHours}}- Sleep: {{checkIn.sleepHours}}h{{/if}}
+{{#if checkIn.screenTime}}- Screen time: {{checkIn.screenTime}}{{/if}}
+{{#if metrics.burnout}}- Burnout: {{metrics.burnout.level}} ({{metrics.burnout.score}}){{/if}}
+
+{{#if highlights}}
+## Highlights
+
+{{#each highlights}}
+- {{this}}
+{{/each}}
+{{/if}}
+
+{{#if risks}}
+## Needs Attention
+
+{{#each risks}}
+- {{this}}
+{{/each}}
+{{/if}}
+
+{{#if checkIn}}
+## Wellbeing
+
+- Mood: {{checkIn.mood}} / 5
+- Energy: {{checkIn.energy}} / 5
+{{#if checkIn.sleepHours}}- Sleep hours: {{checkIn.sleepHours}}{{/if}}
+{{#if checkIn.sleepScore}}- Sleep score: {{checkIn.sleepScore}}{{/if}}
+{{#if checkIn.screenTime}}- Screen time: {{checkIn.screenTime}}{{/if}}
+{{#if metrics}}- Rest time: {{metrics.restTime}}{{/if}}
+{{#if checkIn.notes}}
+
+{{checkIn.notes}}
+{{/if}}
+{{/if}}
+
+## Habits
+
+{{#each habitRepos}}
+### {{name}}
+
+{{#each streams}}
+#### {{name}}
+
+{{#if completedHabits}}
+##### Completed
+
+{{#each completedHabits}}
+###### {{name}}
+
+- Status: {{status}}
+{{#if durationTime}}- Time: {{durationTime}}{{/if}}
+{{/each}}
+{{/if}}
+
+{{#if pendingHabits}}
+##### Pending
+
+{{#each pendingHabits}}
+###### {{name}}
+
+- Status: {{status}}
+{{#if durationTime}}- Time: {{durationTime}}{{/if}}
+{{/each}}
+{{/if}}
+{{/each}}
+{{/each}}
+
+## Issues
+
+{{#each repos}}
+### {{name}}
+
+{{#each streams}}
+#### {{name}}
+
+{{#if completedIssues}}
+##### Completed
+
+{{#each completedIssues}}
+###### #{{id}} {{title}}
+
+- Status: {{status}}
+- Worked / estimate: {{workedEstimate}}
+{{/each}}
+{{/if}}
+
+{{#if activeIssues}}
+##### Active
+
+{{#each activeIssues}}
+###### #{{id}} {{title}}
+
+- Status: {{status}}
+- Worked / estimate: {{workedEstimate}}
+{{/each}}
+{{/if}}
+
+{{#if attentionIssues}}
+##### Needs Attention
+
+{{#each attentionIssues}}
+###### #{{id}} {{title}}
+
+- Status: {{status}}
+- Worked / estimate: {{workedEstimate}}
+{{/each}}
+{{/if}}
+{{/each}}
+{{/each}}
