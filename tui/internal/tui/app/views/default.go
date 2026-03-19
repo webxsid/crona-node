@@ -12,6 +12,9 @@ import (
 
 func renderDefaultView(theme Theme, state ContentState) string {
 	openIndices, completedIndices := SplitDefaultIssueIndices(state.DefaultIssues, state.Filters["issues"], state.Settings)
+	if state.Height < 37 {
+		return renderDefaultCompactView(theme, state, openIndices, completedIndices)
+	}
 	summaryH := 5
 	if state.Height < 20 {
 		summaryH = 4
@@ -24,6 +27,37 @@ func renderDefaultView(theme Theme, state ContentState) string {
 	completedPane := renderDefaultIssuePane(theme, state, "Completed Issues [2]", "Done and abandoned, ready to revisit", completedIndices, len(openIndices), false, completedH, "No done or abandoned issues", state.DefaultIssueSection == "completed")
 
 	return lipgloss.JoinVertical(lipgloss.Left, summary, priorityPane, completedPane)
+}
+
+func renderDefaultCompactView(theme Theme, state ContentState, openIndices, completedIndices []int) string {
+	summaryH := 4
+	footerH := 4
+	mainH := max(8, state.Height-summaryH-footerH)
+	mainTitle := "Active Issues [1]"
+	mainSubtitle := "Due work and open issues"
+	mainIndices := openIndices
+	mainOffset := 0
+	mainEmpty := "No open issues match the current filter"
+	mainActive := state.DefaultIssueSection != "completed"
+	footerTitle := "Closed"
+	footerIndices := completedIndices
+
+	if state.DefaultIssueSection == "completed" {
+		mainTitle = "Completed Issues [2]"
+		mainSubtitle = "Done and abandoned, ready to revisit"
+		mainIndices = completedIndices
+		mainOffset = len(openIndices)
+		mainEmpty = "No done or abandoned issues"
+		mainActive = true
+		footerTitle = "Open"
+		footerIndices = openIndices
+	}
+
+	return lipgloss.JoinVertical(lipgloss.Left,
+		renderDefaultCompactSummary(theme, state, summaryH),
+		renderDefaultCompactIssuePane(theme, state, mainTitle, mainSubtitle, mainIndices, mainOffset, mainEmpty, mainActive, mainH),
+		renderDefaultCompactFooter(theme, footerTitle, footerIndices, state, footerH),
+	)
 }
 
 func renderDefaultSummary(theme Theme, state ContentState, height int) string {
@@ -48,6 +82,26 @@ func renderDefaultSummary(theme Theme, state ContentState, height int) string {
 		renderDefaultStatCard(theme, "Closed", fmt.Sprintf("%d", closedCount), "done + abandoned", theme.ColorSubtle, rightW, height),
 	}
 	return lipgloss.JoinHorizontal(lipgloss.Top, cards...)
+}
+
+func renderDefaultCompactSummary(theme Theme, state ContentState, height int) string {
+	today := time.Now().Format("2006-01-02")
+	dueNow, openCount, closedCount := 0, 0, 0
+	for _, issue := range state.DefaultIssues {
+		if isClosedIssueStatus(issue.Status) {
+			closedCount++
+			continue
+		}
+		openCount++
+		if due := normalizedDueDate(issue.TodoForDate); due != "" && due <= today {
+			dueNow++
+		}
+	}
+	lines := []string{
+		fmt.Sprintf("%s  %s  %s", lipStyle(theme, theme.ColorYellow).Render(fmt.Sprintf("Due %d", dueNow)), theme.StyleHeader.Render(fmt.Sprintf("Open %d", openCount)), theme.StyleDim.Render(fmt.Sprintf("Closed %d", closedCount))),
+		theme.StyleDim.Render("due now   open work   done + abandoned"),
+	}
+	return renderPaneBox(theme, false, state.Width, height, stringsJoin(lines))
 }
 
 func renderDefaultStatCard(theme Theme, label, value, hint string, border lipgloss.Color, width, height int) string {
@@ -95,11 +149,7 @@ func renderDefaultIssuePane(theme Theme, state ContentState, title, subtitle str
 	}
 	header := fmt.Sprintf("%-2s %-*s %-*s %-*s %-*s %-*s", "", titleW, "Issue", statusW, "Status", estimateW, "Estimate", repoW, "Repo", streamW, "Stream")
 	lines = append(lines, theme.StyleDim.Render(truncate(header, width-6)))
-
-	inner := height - len(lines) - 2
-	if inner < 1 {
-		inner = 1
-	}
+	inner := remainingPaneHeight(height, lines)
 
 	if len(indices) == 0 {
 		lines = append(lines, theme.StyleDim.Render(emptyText))
@@ -129,6 +179,69 @@ func renderDefaultIssuePane(theme Theme, state ContentState, title, subtitle str
 		lines = append(lines, theme.StyleDim.Render(fmt.Sprintf("   ↓ %d more", remaining)))
 	}
 	return renderPaneBox(theme, paneActive, width, height, strings.Join(lines, "\n"))
+}
+
+func renderDefaultCompactIssuePane(theme Theme, state ContentState, title, subtitle string, indices []int, offset int, emptyText string, activeSection bool, height int) string {
+	active := state.Pane == "issues"
+	cur := state.Cursors["issues"] - offset
+	paneActive := active && activeSection
+	lines := []string{
+		theme.StylePaneTitle.Render(title),
+		theme.StyleHeader.Render(defaultScopeLabel(state.Context)),
+		theme.StyleDim.Render(subtitle),
+	}
+	if paneActive {
+		lines = append(lines, renderPaneActionLine(theme, state.Filters["issues"], state.Width-6, paneActionsForState(theme, state, true)))
+	} else {
+		lines = append(lines, renderFilterLine(theme, state.Filters["issues"], state.Width-6))
+	}
+	inner := remainingPaneHeight(height, lines)
+	if len(indices) == 0 {
+		lines = append(lines, theme.StyleDim.Render(emptyText))
+		return renderPaneBox(theme, paneActive, state.Width, height, stringsJoin(lines))
+	}
+	start, end := listWindow(max(0, cur), len(indices), inner)
+	for pos := start; pos < end; pos++ {
+		issue := state.DefaultIssues[indices[pos]]
+		lines = append(lines, renderDefaultCompactIssueRow(theme, state.Width, paneActive && pos == cur, active, issue))
+	}
+	if remaining := len(indices) - end; remaining > 0 {
+		lines = append(lines, theme.StyleDim.Render(fmt.Sprintf("... %d more", remaining)))
+	}
+	return renderPaneBox(theme, paneActive, state.Width, height, stringsJoin(lines))
+}
+
+func renderDefaultCompactIssueRow(theme Theme, width int, selected, active bool, issue api.IssueWithMeta) string {
+	parts := []string{truncate(issue.Title+issueDueSuffix(issue.TodoForDate), max(18, width/2))}
+	parts = append(parts, truncate(plainIssueStatus(string(issue.Status)), 11))
+	if issue.EstimateMinutes != nil {
+		parts = append(parts, fmt.Sprintf("%dm", *issue.EstimateMinutes))
+	}
+	row := strings.Join(parts, "  ")
+	contentStyle := issueStatusStyle(theme, string(issue.Status))
+	if contentStyle != nil {
+		row = contentStyle.Render(row)
+	}
+	row = truncate(row, width-6)
+	if selected && active {
+		return theme.StyleCursor.Render("▶ " + row)
+	}
+	if selected {
+		return theme.StyleSelected.Render("  " + row)
+	}
+	return theme.StyleNormal.Render("  " + row)
+}
+
+func renderDefaultCompactFooter(theme Theme, label string, indices []int, state ContentState, height int) string {
+	lines := []string{
+		theme.StylePaneTitle.Render(label),
+		theme.StyleDim.Render(fmt.Sprintf("%d issues", len(indices))),
+	}
+	if len(indices) > 0 && height > 3 {
+		issue := state.DefaultIssues[indices[0]]
+		lines = append(lines, theme.StyleDim.Render(truncate(issue.Title, state.Width-6)))
+	}
+	return renderPaneBox(theme, false, state.Width, height, stringsJoin(lines))
 }
 
 func defaultScopeLabel(ctx *api.ActiveContext) string {

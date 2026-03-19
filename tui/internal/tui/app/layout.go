@@ -8,11 +8,20 @@ import (
 	"crona/tui/internal/tui/app/views"
 
 	"github.com/charmbracelet/lipgloss"
+	"github.com/charmbracelet/x/ansi"
+)
+
+const (
+	minTUIWidth  = 135
+	minTUIHeight = 30
 )
 
 func (m Model) View() string {
 	if m.width == 0 {
 		return "Loading..."
+	}
+	if m.isUndersized() {
+		return m.renderMinimumSizeWarning()
 	}
 
 	base := strings.Join([]string{
@@ -23,27 +32,67 @@ func (m Model) View() string {
 
 	if m.dialog != "" {
 		dialogStr := dialogs.Render(dialogTheme(), m.dialogRenderState())
-		return lipgloss.Place(
+		return clipViewportString(lipgloss.Place(
 			m.width, m.height,
 			lipgloss.Center, lipgloss.Center,
 			dialogStr,
-		)
+		), m.width, m.height)
 	}
 
 	if m.sessionDetailOpen {
 		overlay := m.renderSessionDetailOverlay()
-		return m.renderOverlay(base, overlay, max(0, (m.width-overlayWidth(overlay))/2), max(0, (m.height-overlayHeight(overlay))/2))
+		return clipViewportString(m.renderOverlay(base, overlay, max(0, (m.width-overlayWidth(overlay))/2), max(0, (m.height-overlayHeight(overlay))/2)), m.width, m.height)
 	}
 	if m.helpOpen {
 		overlay := m.renderHelpOverlay()
-		return m.renderOverlay(base, overlay, max(0, (m.width-overlayWidth(overlay))/2), max(0, (m.height-overlayHeight(overlay))/2))
+		return clipViewportString(m.renderOverlay(base, overlay, max(0, (m.width-overlayWidth(overlay))/2), max(0, (m.height-overlayHeight(overlay))/2)), m.width, m.height)
 	}
 	if m.statusMsg != "" {
 		overlay := m.renderStatusToast()
-		return m.renderOverlay(base, overlay, 1, max(0, m.height-overlayHeight(overlay)-1))
+		return clipViewportString(m.renderOverlay(base, overlay, 1, max(0, m.height-overlayHeight(overlay)-1)), m.width, m.height)
 	}
 
-	return base
+	return clipViewportString(base, m.width, m.height)
+}
+
+func (m Model) isUndersized() bool {
+	return m.width < minTUIWidth || m.height < minTUIHeight
+}
+
+func (m Model) renderMinimumSizeWarning() string {
+	title := "Terminal Too Small"
+	current := fmt.Sprintf("Current: %dx%d", m.width, m.height)
+	required := fmt.Sprintf("Required: %dx%d", minTUIWidth, minTUIHeight)
+	instruction := "Resize the terminal to continue."
+
+	body := []string{
+		stylePaneTitle.Render(title),
+		"",
+		styleNormal.Render(current),
+		styleNormal.Render(required),
+		"",
+		styleDim.Render(instruction),
+	}
+
+	contentWidth := max(
+		lipgloss.Width(title),
+		max(lipgloss.Width(current), max(lipgloss.Width(required), lipgloss.Width(instruction))),
+	)
+	boxWidth := min(max(12, contentWidth+8), max(12, m.width-2))
+	box := lipgloss.NewStyle().
+		BorderStyle(lipgloss.RoundedBorder()).
+		BorderForeground(colorYellow).
+		Padding(1, 2).
+		Width(boxWidth).
+		Render(strings.Join(body, "\n"))
+
+	return clipViewportString(lipgloss.Place(
+		m.width,
+		m.height,
+		lipgloss.Center,
+		lipgloss.Center,
+		box,
+	), m.width, m.height)
 }
 
 func (m Model) renderHeader() string {
@@ -461,11 +510,30 @@ func overlayHeight(overlay string) int {
 }
 
 func padRight(s string, width int) string {
-	runes := []rune(s)
-	if len(runes) >= width {
-		return string(runes[:width])
+	if width < 1 {
+		return ""
 	}
-	return s + strings.Repeat(" ", width-len(runes))
+	if ansi.StringWidth(s) >= width {
+		return ansi.Truncate(s, width, "")
+	}
+	return s + strings.Repeat(" ", width-ansi.StringWidth(s))
+}
+
+func clipViewportString(s string, width, height int) string {
+	if height < 1 || width < 1 {
+		return ""
+	}
+	lines := strings.Split(s, "\n")
+	if len(lines) > height {
+		lines = lines[:height]
+	}
+	for len(lines) < height {
+		lines = append(lines, "")
+	}
+	for i := range lines {
+		lines[i] = padRight(lines[i], width)
+	}
+	return strings.Join(lines, "\n")
 }
 
 func (m Model) sidebarWidth() int {
@@ -524,7 +592,23 @@ func (m Model) renderPaneBox(active bool, width, height int, content string) str
 		Width(width-2).
 		Height(height-2).
 		Padding(0, 1).
-		Render(content)
+		Render(viewsClipBoxContent(content, height-2))
+}
+
+func viewsClipBoxContent(content string, maxLines int) string {
+	if maxLines < 1 {
+		return ""
+	}
+	lines := strings.Split(content, "\n")
+	if len(lines) <= maxLines {
+		return content
+	}
+	if maxLines == 1 {
+		return "..."
+	}
+	clipped := append([]string{}, lines[:maxLines-1]...)
+	clipped = append(clipped, "...")
+	return strings.Join(clipped, "\n")
 }
 
 func listWindow(cur, total, inner int) (int, int) {

@@ -12,7 +12,8 @@ func renderConfigView(theme Theme, state ContentState) string {
 	items := configItems(state.ExportAssets)
 	indices := filteredStrings(items, state.Filters["config"])
 	total := len(indices)
-	lines := []string{theme.StylePaneTitle.Render("Config"), renderPaneActionLine(theme, state.Filters["config"], state.Width-6, paneActionsForState(theme, state, active))}
+	actionLine := renderPaneActionLine(theme, state.Filters["config"], state.Width-6, paneActionsForState(theme, state, active))
+	lines := []string{theme.StylePaneTitle.Render("Config"), actionLine}
 	if state.ExportAssets == nil {
 		lines = append(lines, theme.StyleDim.Render("Loading export assets..."))
 		return renderPaneBox(theme, active, state.Width, state.Height, stringsJoin(lines))
@@ -21,10 +22,7 @@ func renderConfigView(theme Theme, state ContentState) string {
 		lines = append(lines, theme.StyleDim.Render("No config items match the current filter"))
 		return renderPaneBox(theme, active, state.Width, state.Height, stringsJoin(lines))
 	}
-	inner := state.Height - 5
-	if inner < 1 {
-		inner = 1
-	}
+	inner := remainingPaneHeight(state.Height, lines)
 	start, end := listWindow(cur, total, inner)
 	if start > 0 {
 		lines = append(lines, theme.StyleDim.Render(fmt.Sprintf("↑ %d more", start)))

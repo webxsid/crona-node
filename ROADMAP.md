@@ -22,6 +22,7 @@ Foundation for all future phases. TUI must be stable and usable before anything 
 - [x] Temporary stash dialog with pop/apply
 - [x] Transient toast messages for errors and status updates
 - [x] Modal key-help overlay for small terminals
+- [x] Minimum TUI size guard with compact small-height layouts for Daily, Default, and Wellbeing views
 - [x] Active-session safeguards for issue status changes
 - [x] SQLite single-connection kernel mode for stable local IPC writes
 - [x] Layout finalization (panel locking)

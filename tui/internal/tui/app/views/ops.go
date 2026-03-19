@@ -10,11 +10,8 @@ func renderOpsView(theme Theme, state ContentState) string {
 	cur := state.Cursors["ops"]
 	indices := reverseIndices(filteredOpIndices(state.Ops, state.Filters["ops"]))
 	total := len(indices)
-	inner := state.Height - 7
-	if inner < 1 {
-		inner = 1
-	}
-	lines := []string{theme.StylePaneTitle.Render("Ops Log"), theme.StyleDim.Render(fmt.Sprintf("limit: %d", currentOpsLimit(state))), renderPaneActionLine(theme, state.Filters["ops"], state.Width-6, paneActionsForState(theme, state, active))}
+	actionLine := renderPaneActionLine(theme, state.Filters["ops"], state.Width-6, paneActionsForState(theme, state, active))
+	lines := []string{theme.StylePaneTitle.Render("Ops Log"), theme.StyleDim.Render(fmt.Sprintf("limit: %d", currentOpsLimit(state))), actionLine}
 	if total == 0 {
 		lines = append(lines, theme.StyleDim.Render("No operations recorded"))
 	} else {
@@ -25,6 +22,7 @@ func renderOpsView(theme Theme, state ContentState) string {
 		}
 		header := fmt.Sprintf("%-2s %-19s %-*s %-*s %s", "", "Time", entityW, "Entity", actionW, "Action", "Target")
 		lines = append(lines, theme.StyleDim.Render(truncate(header, state.Width-6)))
+		inner := remainingPaneHeight(state.Height, lines)
 		start, end := listWindow(cur, total, inner)
 		if start > 0 {
 			lines = append(lines, theme.StyleDim.Render(fmt.Sprintf("   ↑ %d more", start)))

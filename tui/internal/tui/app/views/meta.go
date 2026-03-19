@@ -35,15 +35,13 @@ func renderMetaIssues(theme Theme, state ContentState, width, height int, emptyT
 	}
 	indices := filteredIssueIndices(issues, state.Filters["issues"])
 	total := len(indices)
-	inner := height - 5
-	if inner < 1 {
-		inner = 1
-	}
 	actions := paneActionsForState(theme, state, active)
-	lines := []string{theme.StylePaneTitle.Render("Issues [3]"), renderPaneActionLine(theme, state.Filters["issues"], width-6, actions)}
+	actionLine := renderPaneActionLine(theme, state.Filters["issues"], width-6, actions)
+	lines := []string{theme.StylePaneTitle.Render("Issues [3]"), actionLine}
 	if total == 0 {
 		lines = append(lines, theme.StyleDim.Render(emptyText))
 	} else {
+		inner := remainingPaneHeight(height, lines)
 		start, end := listWindow(cur, total, inner)
 		if start > 0 {
 			lines = append(lines, theme.StyleDim.Render(fmt.Sprintf("↑ %d more", start)))
@@ -66,15 +64,13 @@ func renderMetaHabits(theme Theme, state ContentState, width, height int) string
 	items := habitItems(state.Habits)
 	indices := filteredStrings(items, state.Filters["habits"])
 	total := len(indices)
-	inner := height - 5
-	if inner < 1 {
-		inner = 1
-	}
-	lines := []string{theme.StylePaneTitle.Render("Habits [4]"), renderPaneActionLine(theme, state.Filters["habits"], width-6, paneActionsForState(theme, state, active))}
+	actionLine := renderPaneActionLine(theme, state.Filters["habits"], width-6, paneActionsForState(theme, state, active))
+	lines := []string{theme.StylePaneTitle.Render("Habits [4]"), actionLine}
 	if total == 0 {
 		lines = append(lines, theme.StyleDim.Render("No habits — [a] create new"))
 		return renderPaneBox(theme, active, width, height, stringsJoin(lines))
 	}
+	inner := remainingPaneHeight(height, lines)
 	start, end := listWindow(cur, total, inner)
 	if start > 0 {
 		lines = append(lines, theme.StyleDim.Render(fmt.Sprintf("↑ %d more", start)))

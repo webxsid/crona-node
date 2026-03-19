@@ -56,10 +56,6 @@ func renderSessionHistory(theme Theme, state ContentState) string {
 	cur := state.Cursors["sessions"]
 	indices := filteredSessionIndices(state.SessionHistory, state.Filters["sessions"])
 	total := len(indices)
-	inner := state.Height - 6
-	if inner < 1 {
-		inner = 1
-	}
 	title := state.SessionHistoryTitle
 	if strings.TrimSpace(title) == "" {
 		title = "Session History"
@@ -68,7 +64,8 @@ func renderSessionHistory(theme Theme, state ContentState) string {
 	if strings.TrimSpace(subtitle) == "" {
 		subtitle = "Recent sessions across the workspace"
 	}
-	lines := []string{theme.StylePaneTitle.Render(title), theme.StyleDim.Render(subtitle), renderPaneActionLine(theme, state.Filters["sessions"], state.Width-6, paneActionsForState(theme, state, active))}
+	actionLine := renderPaneActionLine(theme, state.Filters["sessions"], state.Width-6, paneActionsForState(theme, state, active))
+	lines := []string{theme.StylePaneTitle.Render(title), theme.StyleDim.Render(subtitle), actionLine}
 	if total == 0 {
 		lines = append(lines, theme.StyleDim.Render("No sessions recorded"))
 		return renderPaneBox(theme, active, state.Width, state.Height, stringsJoin(lines))
@@ -80,6 +77,7 @@ func renderSessionHistory(theme Theme, state ContentState) string {
 	}
 	header := fmt.Sprintf("%-2s %-*s %-*s %s", "", dateW, "Ended", durW, "Duration", "Notes")
 	lines = append(lines, theme.StyleDim.Render(truncate(header, state.Width-6)))
+	inner := remainingPaneHeight(state.Height, lines)
 	start, end := listWindow(cur, total, inner)
 	if start > 0 {
 		lines = append(lines, theme.StyleDim.Render("..."))

@@ -19,14 +19,12 @@ func renderSimplePane(theme Theme, title, filter string, cursor int, items []str
 func renderSimplePaneWithActions(theme Theme, title, filter string, cursor int, items []string, active bool, width, height int, empty string, actions []string) string {
 	indices := filteredStrings(items, filter)
 	total := len(indices)
-	inner := height - 5
-	if inner < 1 {
-		inner = 1
-	}
 	if !active {
 		actions = nil
 	}
-	lines := []string{theme.StylePaneTitle.Render(title), renderPaneActionLine(theme, filter, width-6, actions)}
+	actionLine := renderPaneActionLine(theme, filter, width-6, actions)
+	lines := []string{theme.StylePaneTitle.Render(title), actionLine}
+	inner := remainingPaneHeight(height, lines)
 	if total == 0 {
 		lines = append(lines, theme.StyleDim.Render(empty))
 	} else {
@@ -73,7 +71,8 @@ func joinActionSegments(segments []string, width int) string {
 	if width < 1 {
 		return ""
 	}
-	kept := make([]string, 0, len(segments))
+	rows := []string{}
+	current := make([]string, 0, len(segments))
 	used := 0
 	for _, segment := range segments {
 		if strings.TrimSpace(segment) == "" {
@@ -81,19 +80,50 @@ func joinActionSegments(segments []string, width int) string {
 		}
 		segmentWidth := lipgloss.Width(segment)
 		additional := segmentWidth
-		if len(kept) > 0 {
+		if len(current) > 0 {
 			additional += 3
 		}
-		if used+additional > width {
-			break
+		if used+additional > width && len(current) > 0 {
+			rows = append(rows, strings.Join(current, "   "))
+			current = []string{segment}
+			used = segmentWidth
+			continue
 		}
-		kept = append(kept, segment)
+		if segmentWidth > width && len(current) == 0 {
+			rows = append(rows, segment)
+			used = 0
+			continue
+		}
+		current = append(current, segment)
 		used += additional
 	}
-	if len(kept) == 0 {
+	if len(current) > 0 {
+		rows = append(rows, strings.Join(current, "   "))
+	}
+	if len(rows) == 0 {
 		return ""
 	}
-	return strings.Join(kept, "   ")
+	return strings.Join(rows, "\n")
+}
+
+func remainingPaneHeight(height int, lines []string) int {
+	inner := height - 2 - renderedLineCount(lines)
+	if inner < 1 {
+		return 1
+	}
+	return inner
+}
+
+func renderedLineCount(lines []string) int {
+	total := 0
+	for _, line := range lines {
+		h := lipgloss.Height(line)
+		if h < 1 {
+			h = 1
+		}
+		total += h
+	}
+	return total
 }
 
 func paneActionsForState(theme Theme, state ContentState, active bool) []string {
@@ -134,5 +164,21 @@ func renderPaneBox(theme Theme, active bool, width, height int, content string) 
 	if active {
 		box = theme.StyleActive
 	}
-	return box.Width(width-2).Height(height-2).Padding(0, 1).Render(content)
+	return box.Width(width-2).Height(height-2).Padding(0, 1).Render(clipBoxContent(content, height-2))
+}
+
+func clipBoxContent(content string, maxLines int) string {
+	if maxLines < 1 {
+		return ""
+	}
+	lines := strings.Split(content, "\n")
+	if len(lines) <= maxLines {
+		return content
+	}
+	if maxLines == 1 {
+		return "..."
+	}
+	clipped := append([]string{}, lines[:maxLines-1]...)
+	clipped = append(clipped, "...")
+	return strings.Join(clipped, "\n")
 }

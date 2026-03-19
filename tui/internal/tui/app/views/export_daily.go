@@ -13,7 +13,8 @@ func renderExportDailyView(theme Theme, state ContentState) string {
 	items := exportReportItems(state.ExportReports)
 	indices := filteredStrings(items, state.Filters["export_reports"])
 	total := len(indices)
-	lines := []string{theme.StylePaneTitle.Render("Daily Exports"), renderPaneActionLine(theme, state.Filters["export_reports"], state.Width-6, paneActionsForState(theme, state, active))}
+	actionLine := renderPaneActionLine(theme, state.Filters["export_reports"], state.Width-6, paneActionsForState(theme, state, active))
+	lines := []string{theme.StylePaneTitle.Render("Daily Exports"), actionLine}
 	if state.ExportAssets == nil {
 		lines = append(lines, theme.StyleDim.Render("Loading export configuration..."))
 		return renderPaneBox(theme, active, state.Width, state.Height, stringsJoin(lines))
@@ -24,10 +25,7 @@ func renderExportDailyView(theme Theme, state ContentState) string {
 		lines = append(lines, theme.StyleDim.Render("No exported markdown reports found"))
 		return renderPaneBox(theme, active, state.Width, state.Height, stringsJoin(lines))
 	}
-	inner := state.Height - 6
-	if inner < 1 {
-		inner = 1
-	}
+	inner := remainingPaneHeight(state.Height, lines)
 	start, end := listWindow(cur, total, inner)
 	if start > 0 {
 		lines = append(lines, theme.StyleDim.Render(fmt.Sprintf("↑ %d more", start)))

@@ -11,10 +11,25 @@ import (
 )
 
 func renderWellbeingView(theme Theme, state ContentState) string {
+	if state.Height < 37 {
+		return renderWellbeingCompactView(theme, state)
+	}
 	topH, bottomH := splitVertical(state.Height, 11, 8, state.Height/2)
 	return lipgloss.JoinVertical(lipgloss.Left,
 		renderWellbeingSummary(theme, state, state.Width, topH),
 		renderWellbeingTrends(theme, state, state.Width, bottomH),
+	)
+}
+
+func renderWellbeingCompactView(theme Theme, state ContentState) string {
+	topH := max(10, state.Height*3/5)
+	if topH > state.Height-6 {
+		topH = state.Height - 6
+	}
+	bottomH := max(6, state.Height-topH)
+	return lipgloss.JoinVertical(lipgloss.Left,
+		renderWellbeingCompactSummary(theme, state, state.Width, topH),
+		renderWellbeingCompactTrends(theme, state, state.Width, bottomH),
 	)
 }
 
@@ -60,6 +75,34 @@ func renderWellbeingSummary(theme Theme, state ContentState, width, height int) 
 	return renderPaneBox(theme, false, width, height, stringsJoin(lines))
 }
 
+func renderWellbeingCompactSummary(theme Theme, state ContentState, width, height int) string {
+	dateText := state.WellbeingDate
+	lines := []string{
+		fmt.Sprintf("%s  %s", theme.StylePaneTitle.Render("Wellbeing"), theme.StyleHeader.Render(dateText)),
+		renderActionLine(theme, width-6, ContextualActions(theme, ActionsState{View: state.View, Pane: state.Pane})),
+	}
+	if state.DailyCheckIn == nil || state.DailyCheckIn.Date == "" {
+		lines = append(lines, theme.StyleDim.Render("No check-in recorded for this date"))
+	} else {
+		lines = append(lines,
+			fmt.Sprintf("%s  %d/5", theme.StyleHeader.Render("Mood"), state.DailyCheckIn.Mood),
+			fmt.Sprintf("%s  %d/5", theme.StyleHeader.Render("Energy"), state.DailyCheckIn.Energy),
+		)
+		if state.DailyCheckIn.SleepHours != nil {
+			lines = append(lines, fmt.Sprintf("%s  %.1fh", theme.StyleHeader.Render("Sleep"), *state.DailyCheckIn.SleepHours))
+		} else if state.DailyCheckIn.SleepScore != nil {
+			lines = append(lines, fmt.Sprintf("%s  %d/100", theme.StyleHeader.Render("Sleep"), *state.DailyCheckIn.SleepScore))
+		}
+	}
+	if burnout := latestBurnout(state); burnout != nil {
+		lines = append(lines,
+			fmt.Sprintf("%s  %s", theme.StyleHeader.Render("Burnout"), burnoutBadge(theme, burnout)),
+			theme.StyleDim.Render(burnoutSummary(burnout)),
+		)
+	}
+	return renderPaneBox(theme, false, width, height, stringsJoin(lines))
+}
+
 func renderWellbeingTrends(theme Theme, state ContentState, width, height int) string {
 	lines := []string{
 		theme.StylePaneTitle.Render("Metrics Window"),
@@ -93,6 +136,41 @@ func renderWellbeingTrends(theme Theme, state ContentState, width, height int) s
 		)
 		for _, factor := range burnoutFactorLines(burnout) {
 			lines = append(lines, factor)
+		}
+	}
+	return renderPaneBox(theme, false, width, height, stringsJoin(lines))
+}
+
+func renderWellbeingCompactTrends(theme Theme, state ContentState, width, height int) string {
+	lines := []string{theme.StylePaneTitle.Render("Metrics Window")}
+	if state.MetricsRollup == nil {
+		lines = append(lines, theme.StyleDim.Render("Loading metrics..."))
+		return renderPaneBox(theme, false, width, height, stringsJoin(lines))
+	}
+	lines = append(lines,
+		fmt.Sprintf("%s  %d  %s  %d", theme.StyleHeader.Render("Days"), state.MetricsRollup.Days, theme.StyleHeader.Render("Check-ins"), state.MetricsRollup.CheckInDays),
+		fmt.Sprintf("%s  %d  %s  %s", theme.StyleHeader.Render("Focus"), state.MetricsRollup.FocusDays, theme.StyleHeader.Render("Worked"), formatClock(state.MetricsRollup.WorkedSeconds)),
+	)
+	if state.MetricsRollup.AverageMood != nil || state.MetricsRollup.AverageEnergy != nil {
+		avgMood := "-"
+		avgEnergy := "-"
+		if state.MetricsRollup.AverageMood != nil {
+			avgMood = fmt.Sprintf("%.1f", *state.MetricsRollup.AverageMood)
+		}
+		if state.MetricsRollup.AverageEnergy != nil {
+			avgEnergy = fmt.Sprintf("%.1f", *state.MetricsRollup.AverageEnergy)
+		}
+		lines = append(lines, fmt.Sprintf("%s  %s  %s  %s", theme.StyleHeader.Render("Mood"), avgMood, theme.StyleHeader.Render("Energy"), avgEnergy))
+	}
+	if state.Streaks != nil {
+		lines = append(lines,
+			fmt.Sprintf("Check-in %d/%d  Focus %d/%d", state.Streaks.CurrentCheckInDays, state.Streaks.LongestCheckInDays, state.Streaks.CurrentFocusDays, state.Streaks.LongestFocusDays),
+		)
+	}
+	if burnout := latestBurnout(state); burnout != nil {
+		factors := burnoutFactorLines(burnout)
+		if len(factors) > 0 {
+			lines = append(lines, theme.StyleDim.Render(truncate(factors[0], width-6)))
 		}
 	}
 	return renderPaneBox(theme, false, width, height, stringsJoin(lines))

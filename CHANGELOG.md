@@ -18,6 +18,7 @@ All notable changes to **Crona** are documented here.
 
 ### Changed
 - Daily dashboard now combines planned issues with due habits for the selected date.
+- TUI dashboards now use explicit compact layouts at small terminal heights, including minimum-size guarding, wrapped pane hotkeys, and height-aware compact modes for Daily, Default, and Wellbeing views.
 - Repo, stream, and issue ordering is now user-configurable through persisted sort settings in core settings.
 - Default issue scoping and create/checkout dialogs now prefill from the active repo/stream context when available.
 - Roadmap documentation now reflects the implemented Phase 2 check-ins, metrics, and habit work present in the current branch.
@@ -35,6 +36,7 @@ All notable changes to **Crona** are documented here.
 ### Verification
 - `make build` passes for the current workspace.
 - `make test` passes for `kernel`.
+- `go test ./internal/tui/...` passes for `tui`.
 
 ## [0.1.0-beta.2] - 2026-03-14
 
