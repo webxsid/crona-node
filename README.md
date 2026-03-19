@@ -18,6 +18,19 @@ curl -fsSL https://github.com/webxsid/crona-node/releases/download/v0.2.0-beta.1
 
 By default this installs into `~/.local/bin`.
 
+If you want to replace an existing install non-interactively, set `CRONA_INSTALL_FORCE=1` on the `sh` side of the pipe:
+
+```bash
+curl -fsSL https://github.com/webxsid/crona-node/releases/download/v0.2.0-beta.1/install-crona-tui.sh | CRONA_INSTALL_FORCE=1 sh
+```
+
+If you want the installer to prompt and wait for your `y/N` response, do not run it through `curl | sh`. Save it first and then execute it so the script can read from your terminal:
+
+```bash
+curl -fsSL -o /tmp/install-crona-tui.sh https://github.com/webxsid/crona-node/releases/download/v0.2.0-beta.1/install-crona-tui.sh
+sh /tmp/install-crona-tui.sh
+```
+
 ## Manual Build And Install
 
 If you want to build from source instead of using the release installer, clone the repo and build the workspace locally.
