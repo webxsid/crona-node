@@ -48,24 +48,40 @@ Capture the non-work signals that give work data context, add lightweight person
 - [x] Habit definitions with daily / weekdays / weekly schedules
 - [x] Habit completion tracking, history, and due-for-date queries
 - [x] Daily dashboard habit lane with completion/failure and time logging
+- [x] Wellbeing dashboard view with check-in summary, streaks, rollups, and burnout status
+- [x] Session streak summary (current streak and longest streak)
+- [x] Burnout indicator view (rolling composite score from session data + wellbeing inputs)
+- [x] Daily log export (Markdown)
+- [x] Editable export templates in runtime assets with bundled defaults and variable docs
+- [x] Config view for export templates, reports directory, and renderer status
+- [x] Export browser view with generated report listing
+- [x] Daily PDF export with dedicated template and runtime renderer detection
+- [x] Timeline-like export report list in TUI
+- [x] Dev helper entrypoint for seed / clear workflows
+- [ ] Windows support
 
 **Phase 2 exit criteria**
 - [x] Daily check-ins are editable from the TUI for any date
 - [x] Rolling wellbeing summaries are available from kernel metrics APIs
 - [x] Habits are part of the daily workflow in both kernel and TUI
 
-## Phase 3 — TUI Dashboard System
+## Phase 3 — Exports & Reports
+Make work history reviewable and portable.
+
+- [ ] Weekly summary export
+- [ ] Session → Issue rollups
+- [ ] Repo-level time reports
+- [ ] CSV export for external analysis
+
+## Phase 4 — TUI Dashboard System
 Make dashboards a first-class terminal feature. Focus on strong summaries, multiple dashboard views, and practical customization that fits a terminal UI.
 
 ### Built-in Dashboards
-- [x] Wellbeing dashboard view with check-in summary, streaks, rollups, and burnout status
 - [ ] Daily Dashboard expansion (weekly rollups, carry-over, missed-vs-done summary)
 - [ ] Activity heatmap (terminal-friendly, date-range configurable)
-- [x] Session streak summary (current streak and longest streak)
 - [ ] Configurable streak scope
 - [ ] Time distribution by repo, stream, issue, or segment type
 - [ ] Daily/weekly focus score (work vs break ratio vs target)
-- [x] Burnout indicator view (rolling composite score from session data + wellbeing inputs)
 - [ ] Goal progress (estimated vs actual time per issue/stream/repo)
 
 ### TUI Customisation
@@ -80,32 +96,23 @@ Make dashboards a first-class terminal feature. Focus on strong summaries, multi
 - [ ] Keep customization terminal-native: stacked widgets, simple grids, no freeform layout
 - [ ] Avoid one-off dashboard endpoints by building reusable summary APIs
 
-## Phase 4 — CLI
+## Phase 5 — CLI
 Non-TUI interface for scripting, shell aliases, and integration with other tools, after the dashboard and metrics model is stable.
 
 - [ ] `crona` binary with subcommands
-- [x] Dev helper entrypoint for seed / clear workflows
 - [ ] JSON output mode (`--json`)
 - [ ] Kernel attach/detach commands
 - [ ] Context management from shell (`crona context set`, `crona issue start`)
 - [ ] Session lifecycle from shell (`crona timer start|pause|end`)
 - [ ] Shell completions (zsh, bash, fish)
 
-## Phase 5 — Exports & Reports
-Make work history reviewable and portable.
+## Phase 6 — Public Beta Release
+- [ ] Cross-platform packaging and install docs are ready for external users
+- [ ] Public beta release notes and upgrade path are documented
+- [ ] Feedback / issue intake path is defined for beta users
+- [ ] Core TUI and kernel flows are stable enough for public beta usage
 
-- [x] Daily log export (Markdown)
-- [x] Editable export templates in runtime assets with bundled defaults and variable docs
-- [x] Config view for export templates, reports directory, and renderer status
-- [x] Export browser view with generated report listing
-- [x] Daily PDF export with dedicated template and runtime renderer detection
-- [ ] Weekly summary export
-- [ ] Session → Issue rollups
-- [ ] Repo-level time reports
-- [x] Timeline-like export report list in TUI
-- [ ] CSV export for external analysis
-
-## Phase 6 — Multi-Device Sync
+## Phase 7 — Multi-Device Sync
 See `FEATURE.md` for design proposal.
 
 - [ ] Op log export/import
