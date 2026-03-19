@@ -348,6 +348,12 @@ func (c *Client) ListExportReports() ([]ExportReportFile, error) {
 	return out, c.call(protocol.MethodExportReportsList, nil, &out)
 }
 
+func (c *Client) DeleteExportReport(path string) error {
+	return c.call(protocol.MethodExportReportsDelete, shareddto.ExportReportDeleteRequest{
+		Path: strings.TrimSpace(path),
+	}, nil)
+}
+
 func (c *Client) ResetExportTemplate(reportKind sharedtypes.ExportReportKind, assetKind sharedtypes.ExportAssetKind) (*ExportAssetStatus, error) {
 	var out ExportAssetStatus
 	if err := c.call(protocol.MethodExportTemplateReset, shareddto.ExportTemplateResetRequest{ReportKind: reportKind, AssetKind: assetKind}, &out); err != nil {

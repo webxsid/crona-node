@@ -4,6 +4,8 @@ All notable changes to **Crona** are documented here.
 
 ## [Unreleased]
 
+## [0.2.1] - 2026-03-19
+
 ### Added
 - Weekly summary, repo, stream, issue-rollup, and CSV exports in the Go kernel and TUI.
 - Editable runtime templates for weekly, repo, stream, and issue-rollup narrative reports, with bundled defaults and per-report variable docs.
@@ -11,18 +13,24 @@ All notable changes to **Crona** are documented here.
 - Expanded `Config` view asset management for all report templates, docs, and CSV spec files.
 - Report browser metadata for report kind, scope, and date-range-aware listing.
 - Dedicated kernel and TUI regressions for report asset metadata, Config exposure, and generalized export rendering.
+- Report deletion from the `Reports` browser, including removal of sidecar metadata files.
 
 ### Changed
 - Export assets now use a generalized report-asset model instead of the old daily-only markdown/PDF pair.
 - Repo, stream, and issue-rollup reports now include descriptions, issue notes, and per-issue session-note sections.
 - Export default output now normalizes legacy `reports/daily` usage back to the shared `reports` root.
 - The `Daily Exports` view has been generalized into a broader `Reports` browser in the TUI.
+- Bundled report assets are now organized by report kind under `assets/export/{daily,weekly,repo,stream,issue-rollup,csv}`.
+- Release/install metadata now targets the `webxsid/crona` repository slug instead of the old `crona-node` slug.
+- `make test` now runs `shared`, `kernel`, `tui`, and `cli` tests instead of only the kernel module.
+- The `Reports` browser now separates `edit`, `open`, and `delete` actions instead of overloading one open action.
 
 ### Fixed
 - Daily habit deletion is now exposed from the Daily view action line and dialog flow.
 - Repo and stream cascade delete/restore now include habits in addition to issues.
 - Habit creation now reuses existing repo/stream selections more reliably by normalizing names and selector inputs.
 - TUI Config now visibly lists the generalized report templates/specs instead of showing only the legacy daily export rows.
+- Legacy flat user report-template paths now migrate into the nested report-kind asset layout.
 
 ## [0.2.0-beta.1] - 2026-03-19
 
@@ -81,7 +89,7 @@ All notable changes to **Crona** are documented here.
 
 ### Changed
 - Repo, stream, and issue public IDs now use numeric IDs.
-- The entire local runtime path moved from Node/HTTP to Go/Unix socket IPC.
+- The entire local runtime path moved from the old HTTP prototype to Go/Unix socket IPC.
 - Kernel auto-launch now prefers an adjacent Go kernel binary and falls back to repo-local `go run` when developing from source.
 - Scratchpad reading now stays confined to its pane instead of taking over the full screen.
 - Scratchpad editing now opens the real file under the kernel scratch directory, with `.md` fallback when metadata paths omit the extension.

@@ -141,7 +141,7 @@ func (m Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.pane = PaneConfig
 		return m, nil
 	}
-	if m.view == ViewExportDaily && key == "1" {
+	if m.view == ViewReports && key == "1" {
 		m.pane = PaneExportReports
 		return m, nil
 	}
@@ -268,11 +268,8 @@ func (m Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			}
 			return m, nil
 		}
-		if m.view == ViewExportDaily && m.pane == PaneExportReports {
+		if m.view == ViewReports && m.pane == PaneExportReports {
 			if report, ok := m.selectedExportReport(); ok && strings.TrimSpace(report.Path) != "" {
-				if strings.EqualFold(report.Format, string(sharedtypes.ExportFormatPDF)) || strings.HasSuffix(strings.ToLower(report.Path), ".pdf") {
-					return m, openDefaultViewer(report.Path)
-				}
 				return m, openEditor(report.Path)
 			}
 			return m, nil
@@ -318,6 +315,12 @@ func (m Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			}
 			return m.openConfirmDeleteEntity("checkin", m.currentWellbeingDate(), "this check-in"), nil
 		}
+		if m.view == ViewReports && m.pane == PaneExportReports {
+			if report, ok := m.selectedExportReport(); ok {
+				return m.openConfirmDeleteEntity("report", report.Path, report.Name), nil
+			}
+			return m, nil
+		}
 		if m.pane == PaneScratchpads {
 			rawIdx := m.filteredIndexAtCursor(PaneScratchpads)
 			if rawIdx >= 0 && rawIdx < len(m.scratchpads) {
@@ -329,14 +332,21 @@ func (m Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 				return next, nil
 			}
 		}
-	case "enter", "o":
+	case "o":
+		if m.view == ViewReports && m.pane == PaneExportReports {
+			if report, ok := m.selectedExportReport(); ok && strings.TrimSpace(report.Path) != "" {
+				return m, openDefaultViewer(report.Path)
+			}
+			return m, nil
+		}
+	case "enter":
 		if m.view == ViewConfig && m.pane == PaneConfig {
 			if item, ok := m.selectedConfigItem(); ok {
 				return m.openViewEntityDialog(item.detailTitle, item.label, item.detailMeta, item.detailBody), nil
 			}
 			return m, nil
 		}
-		if m.view == ViewExportDaily && m.pane == PaneExportReports {
+		if m.view == ViewReports && m.pane == PaneExportReports {
 			if report, ok := m.selectedExportReport(); ok {
 				meta := fmt.Sprintf("Kind %s   Format %s   Modified %s", report.Kind, report.Format, report.ModifiedAt)
 				scope := strings.TrimSpace(report.ScopeLabel)

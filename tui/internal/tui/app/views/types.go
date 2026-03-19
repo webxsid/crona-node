@@ -86,8 +86,8 @@ func RenderContent(theme Theme, state ContentState) string {
 		return renderWellbeingView(theme, state)
 	case "config":
 		return renderConfigView(theme, state)
-	case "export_daily":
-		return renderExportDailyView(theme, state)
+	case "reports":
+		return renderReportsView(theme, state)
 	case "settings":
 		return renderSettingsView(theme, state)
 	default:

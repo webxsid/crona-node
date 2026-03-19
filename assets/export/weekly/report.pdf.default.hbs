@@ -1,0 +1,15 @@
+# Weekly Summary
+Range: {{startDate}} to {{endDate}}
+Generated at {{generatedAt}}
+## Rollup
+- Days: {{summary.days}}
+- Check-ins: {{summary.checkInDays}}
+- Focus days: {{summary.focusDays}}
+- Worked: {{summary.workedTime}}
+- Rest: {{summary.restTime}}
+- Completed issues: {{summary.completedIssues}}
+- Abandoned issues: {{summary.abandonedIssues}}
+## Days
+{{#each days}}
+- {{date}} | {{workedTime}} | {{sessionCount}} sessions
+{{/each}}

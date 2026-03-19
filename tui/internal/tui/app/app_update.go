@@ -88,6 +88,8 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.exportReports = msg.reports
 		m.clampFiltered(PaneExportReports)
 		return m, nil
+	case exportReportDeletedMsg:
+		return m, tea.Batch(m.setStatus("Deleted report "+msg.name, false), loadExportReports(m.client))
 	case issueSessionsLoadedMsg:
 		var activeIssueID int64
 		if m.context != nil && m.context.IssueID != nil {

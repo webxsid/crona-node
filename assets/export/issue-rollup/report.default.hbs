@@ -1,0 +1,39 @@
+# Session to Issue Rollup
+
+Range: {{startDate}} to {{endDate}}
+Generated at {{generatedAt}}
+
+## Rollup Table
+
+{{#each issues}}
+- #{{id}} {{title}} | {{status}} | {{sessionCount}} sessions | {{workedTime}} | {{estimateTime}} | {{scope}}
+{{/each}}
+
+## Detailed Issues
+
+{{#each issues}}
+### #{{id}} {{title}}
+
+- Status: {{status}}
+- Scope: {{scope}}
+- Sessions: {{sessionCount}}
+- Worked: {{workedTime}}
+- Estimate: {{estimateTime}}
+{{#if description}}
+Description
+{{description}}
+{{/if}}
+{{#if notes}}
+Issue Notes
+{{notes}}
+{{/if}}
+
+Sessions
+{{#each sessions}}
+- {{summary}}
+  Commit: {{commit}}
+  Context: {{context}}
+  Work: {{work}}
+  Notes: {{notes}}
+{{/each}}
+{{/each}}

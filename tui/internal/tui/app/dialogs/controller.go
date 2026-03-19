@@ -914,6 +914,7 @@ func updateConfirmDelete(state State, msg tea.KeyMsg) (State, *Action, string) {
 	case "enter":
 		action := &Action{Kind: "delete", ID: state.DeleteID, RepoID: state.RepoID, StreamID: state.StreamID}
 		action.Name = state.DeleteKind
+		action.Title = state.DeleteLabel
 		return Close(state), action, ""
 	}
 	return state, nil, ""

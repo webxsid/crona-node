@@ -1,0 +1,12 @@
+# Repo Report - {{repo.name}}
+Range: {{startDate}} to {{endDate}}
+Generated at {{generatedAt}}
+## Snapshot
+- Streams: {{summary.streamCount}}
+- Issues: {{summary.issueCount}}
+- Habits: {{summary.habitCount}}
+- Sessions: {{summary.sessionCount}}
+## Issues
+{{#each issues}}
+- #{{id}} {{title}} | {{status}} | {{estimateTime}}
+{{/each}}

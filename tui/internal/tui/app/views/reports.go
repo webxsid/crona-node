@@ -7,7 +7,7 @@ import (
 	"crona/tui/internal/api"
 )
 
-func renderExportDailyView(theme Theme, state ContentState) string {
+func renderReportsView(theme Theme, state ContentState) string {
 	active := state.Pane == "export_reports"
 	cur := state.Cursors["export_reports"]
 	items := exportReportItems(state.ExportReports)

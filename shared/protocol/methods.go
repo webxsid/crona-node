@@ -62,6 +62,7 @@ const (
 	MethodExportAssetsGet     = "export.assets.get"
 	MethodExportReportsDirSet = "export.reports_dir.set"
 	MethodExportReportsList   = "export.reports.list"
+	MethodExportReportsDelete = "export.reports.delete"
 	MethodExportTemplateReset = "export.template.reset"
 
 	MethodSessionListByIssue = "session.list_by_issue"

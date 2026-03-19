@@ -719,6 +719,16 @@ func cmdSetExportReportsDir(c *api.Client, path string) tea.Cmd {
 	}
 }
 
+func cmdDeleteExportReport(c *api.Client, report api.ExportReportFile) tea.Cmd {
+	return func() tea.Msg {
+		if err := c.DeleteExportReport(report.Path); err != nil {
+			logger.Errorf("DeleteExportReport: %v", err)
+			return errMsg{err}
+		}
+		return exportReportDeletedMsg{name: report.Name}
+	}
+}
+
 func copyToClipboard(text string) error {
 	commands := [][]string{
 		{"pbcopy"},

@@ -4,7 +4,7 @@
 Foundation for all future phases. TUI must be stable and usable before anything is layered on top.
 
 - [x] Go monorepo workspace (`kernel`, `tui`, `cli`, `shared`)
-- [x] Go kernel replacing the Node core/kernel runtime
+- [x] Go kernel established as the local runtime
 - [x] SQLite store, repositories, commands, and Unix socket IPC in Go
 - [x] Go-native e2e coverage for the kernel IPC boundary
 - [x] Pane-based navigation (1/2/3/4 + j/k)

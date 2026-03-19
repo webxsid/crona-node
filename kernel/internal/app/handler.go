@@ -437,6 +437,13 @@ func (h *Handler) Handle(ctx context.Context, req protocol.Request) protocol.Res
 		return h.handleNoParams(req, func() (any, error) {
 			return export.ListReports(h.paths)
 		})
+	case protocol.MethodExportReportsDelete:
+		return handle(req, func(input shareddto.ExportReportDeleteRequest) (any, error) {
+			if err := export.DeleteReport(h.paths, input.Path); err != nil {
+				return nil, err
+			}
+			return shareddto.OKResponse{OK: true}, nil
+		})
 	case protocol.MethodExportTemplateReset:
 		return handle(req, func(input shareddto.ExportTemplateResetRequest) (any, error) {
 			return export.ResetTemplate(h.paths, input.ReportKind, input.AssetKind)

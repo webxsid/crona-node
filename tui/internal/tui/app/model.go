@@ -25,13 +25,13 @@ const (
 	ViewScratch        View = "scratchpads"
 	ViewOps            View = "ops"
 	ViewWellbeing      View = "wellbeing"
-	ViewExportDaily    View = "export_daily"
+	ViewReports        View = "reports"
 	ViewConfig         View = "config"
 	ViewSettings       View = "settings"
 )
 
 // viewOrder only includes the tab-switchable views.
-var viewOrder = []View{ViewSessionHistory, ViewDaily, ViewWellbeing, ViewExportDaily, ViewDefault, ViewMeta, ViewScratch, ViewOps, ViewConfig, ViewSettings}
+var viewOrder = []View{ViewSessionHistory, ViewDaily, ViewWellbeing, ViewReports, ViewDefault, ViewMeta, ViewScratch, ViewOps, ViewConfig, ViewSettings}
 
 type Pane string
 
@@ -65,7 +65,7 @@ var viewPanes = map[View][]Pane{
 	ViewScratch:        {PaneScratchpads},
 	ViewOps:            {PaneOps},
 	ViewWellbeing:      {},
-	ViewExportDaily:    {PaneExportReports},
+	ViewReports:        {PaneExportReports},
 	ViewConfig:         {PaneConfig},
 	ViewSettings:       {PaneSettings},
 }
@@ -80,7 +80,7 @@ var viewDefaultPane = map[View]Pane{
 	ViewScratch:        PaneScratchpads,
 	ViewOps:            PaneOps,
 	ViewWellbeing:      PaneIssues,
-	ViewExportDaily:    PaneExportReports,
+	ViewReports:        PaneExportReports,
 	ViewConfig:         PaneConfig,
 	ViewSettings:       PaneSettings,
 }

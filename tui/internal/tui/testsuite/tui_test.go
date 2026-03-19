@@ -227,9 +227,22 @@ func TestExportDialogListsPhase3ReportChoices(t *testing.T) {
 	}
 }
 
+func TestReportsViewActionsExposeEditOpenDeleteSeparately(t *testing.T) {
+	actions := views.ContextualActions(views.TestingTheme(), views.ActionsState{
+		View: "reports",
+		Pane: "export_reports",
+	})
+	joined := strings.Join(actions, " ")
+	for _, want := range []string{"[e]", "edit", "[o]", "open", "[d]", "delete", "[enter]", "details"} {
+		if !strings.Contains(joined, want) {
+			t.Fatalf("expected reports actions to contain %q, got %q", want, joined)
+		}
+	}
+}
+
 func TestExportReportsViewShowsReportKindsAndScopeLabels(t *testing.T) {
 	state := views.ContentState{
-		View:   "export_daily",
+		View:   "reports",
 		Pane:   "export_reports",
 		Width:  90,
 		Height: 16,

@@ -1,0 +1,33 @@
+# Weekly Summary
+
+Range: {{startDate}} to {{endDate}}
+Generated at {{generatedAt}}
+
+## Rollup
+
+- Days: {{summary.days}}
+- Check-ins: {{summary.checkInDays}}
+- Focus days: {{summary.focusDays}}
+- Worked: {{summary.workedTime}}
+- Rest: {{summary.restTime}}
+- Completed issues: {{summary.completedIssues}}
+- Abandoned issues: {{summary.abandonedIssues}}
+- Estimated time: {{summary.estimatedTime}}
+{{#if summary.averageMood}}- Avg mood: {{summary.averageMood}}{{/if}}
+{{#if summary.averageEnergy}}- Avg energy: {{summary.averageEnergy}}{{/if}}
+
+## Streaks
+
+- Focus: {{streaks.currentFocusDays}} current / {{streaks.longestFocusDays}} longest
+- Check-ins: {{streaks.currentCheckInDays}} current / {{streaks.longestCheckInDays}} longest
+
+## Days
+
+{{#each days}}
+### {{date}}
+
+- Worked: {{workedTime}}
+- Sessions: {{sessionCount}}
+- Issues: {{totalIssues}} total / {{completedIssues}} completed / {{abandonedIssues}} abandoned
+{{#if checkIn}}- Check-in: mood {{checkIn.mood}} / energy {{checkIn.energy}}{{/if}}
+{{/each}}

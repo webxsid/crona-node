@@ -1,0 +1,7 @@
+# Session to Issue Rollup
+Range: {{startDate}} to {{endDate}}
+Generated at {{generatedAt}}
+## Rollup Table
+{{#each issues}}
+- #{{id}} {{title}} | {{status}} | {{sessionCount}} sessions | {{workedTime}} | {{estimateTime}} | {{scope}}
+{{/each}}

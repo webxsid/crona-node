@@ -15,7 +15,7 @@ func RenderWellbeingForTesting(theme Theme, state ContentState) string {
 }
 
 func RenderExportForTesting(theme Theme, state ContentState) string {
-	return renderExportDailyView(theme, state)
+	return renderReportsView(theme, state)
 }
 
 func RenderPaneBoxForTesting(theme Theme, active bool, width, height int, content string) string {

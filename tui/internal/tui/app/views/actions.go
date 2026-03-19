@@ -70,9 +70,11 @@ func ContextualActions(theme Theme, state ActionsState) []string {
 		}
 		return actions
 	}
-	if state.View == "export_daily" {
+	if state.View == "reports" {
 		return []string{
-			theme.StyleHeader.Render("[e]") + theme.StyleDim.Render(" open"),
+			theme.StyleHeader.Render("[e]") + theme.StyleDim.Render(" edit"),
+			theme.StyleHeader.Render("[o]") + theme.StyleDim.Render(" open"),
+			theme.StyleHeader.Render("[d]") + theme.StyleDim.Render(" delete"),
 			theme.StyleHeader.Render("[enter]") + theme.StyleDim.Render(" details"),
 		}
 	}

@@ -1,6 +1,8 @@
 #!/usr/bin/env sh
 set -eu
 
+. "${0%/*}/project_meta.sh"
+
 if [ "$#" -ne 1 ]; then
   echo "usage: $0 <version-tag>" >&2
   exit 1
@@ -35,7 +37,10 @@ echo "${TARGETS}" | while read -r GOOS GOARCH; do
     go build -o "${RELEASE_DIR}/crona-tui-${VERSION}-${GOOS}-${GOARCH}" ./tui
 done
 
-sed "s/__VERSION__/${VERSION}/g" "${ROOT_DIR}/scripts/install_tui.sh.tmpl" > "${RELEASE_DIR}/install-crona-tui.sh"
+sed \
+  -e "s#__VERSION__#${VERSION}#g" \
+  -e "s#__REPO__#${PROJECT_REPO}#g" \
+  "${ROOT_DIR}/scripts/install_tui.sh.tmpl" > "${RELEASE_DIR}/install-crona-tui.sh"
 chmod +x "${RELEASE_DIR}/install-crona-tui.sh"
 
 mkdir -p "${RELEASE_DIR}/assets"

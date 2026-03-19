@@ -1,0 +1,56 @@
+# Repo Report - {{repo.name}}
+
+Range: {{startDate}} to {{endDate}}
+Generated at {{generatedAt}}
+
+{{#if repo.description}}
+## Description
+
+{{repo.description}}
+{{/if}}
+
+## Snapshot
+
+- Streams: {{summary.streamCount}}
+- Issues: {{summary.issueCount}}
+- Habits: {{summary.habitCount}}
+- Sessions: {{summary.sessionCount}}
+
+## Streams
+
+{{#each streams}}
+- {{name}}{{#if description}}: {{description}}{{/if}}
+{{/each}}
+
+## Issues
+
+{{#each issues}}
+### #{{id}} {{title}}
+
+- Status: {{status}}
+- Scope: {{scope}}
+- Estimate: {{estimateTime}}
+{{#if description}}
+Description
+{{description}}
+{{/if}}
+{{#if notes}}
+Issue Notes
+{{notes}}
+{{/if}}
+
+Sessions
+{{#each sessions}}
+- {{summary}}
+  Commit: {{commit}}
+  Context: {{context}}
+  Work: {{work}}
+  Notes: {{notes}}
+{{/each}}
+{{/each}}
+
+## Habits
+
+{{#each habits}}
+- {{name}} | {{scheduleType}}
+{{/each}}

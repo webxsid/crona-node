@@ -3,6 +3,7 @@ package app
 import (
 	shareddto "crona/shared/dto"
 	sharedtypes "crona/shared/types"
+	"crona/tui/internal/api"
 	dialogpkg "crona/tui/internal/tui/app/dialogs"
 	"errors"
 	"os"
@@ -336,6 +337,8 @@ func (m Model) dialogActionCmd(action dialogpkg.Action) tea.Cmd {
 			return cmdDeleteHabit(m.client, dialogpkg.ParseNumericID(action.ID), action.StreamID, m.currentDashboardDate())
 		case "checkin":
 			return cmdDeleteDailyCheckIn(m.client, action.ID)
+		case "report":
+			return cmdDeleteExportReport(m.client, api.ExportReportFile{Name: action.Title, Path: action.ID})
 		default:
 			return cmdDeleteScratchpad(m.client, action.ID)
 		}

@@ -23,6 +23,7 @@ type metricsRollupLoadedMsg struct{ rollup *api.MetricsRollup }
 type streaksLoadedMsg struct{ streaks *api.StreakSummary }
 type exportAssetsLoadedMsg struct{ assets *api.ExportAssetStatus }
 type exportReportsLoadedMsg struct{ reports []api.ExportReportFile }
+type exportReportDeletedMsg struct{ name string }
 type dailyReportGeneratedMsg struct{ result *api.DailyReportResult }
 type clipboardCopiedMsg struct{ message string }
 

@@ -133,6 +133,10 @@ type ExportReportsDirUpdateRequest struct {
 	ReportsDir string `json:"reportsDir"`
 }
 
+type ExportReportDeleteRequest struct {
+	Path string `json:"path"`
+}
+
 type ExportTemplateResetRequest struct {
 	ReportKind types.ExportReportKind `json:"reportKind,omitempty"`
 	AssetKind  types.ExportAssetKind  `json:"assetKind,omitempty"`

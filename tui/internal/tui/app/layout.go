@@ -171,7 +171,7 @@ func (m Model) renderSidebar(width, height int) string {
 		m.renderSidebarItem(ViewWellbeing, "Wellbeing"),
 		"",
 		styleDim.Render("EXPORT"),
-		m.renderSidebarItem(ViewExportDaily, "Reports"),
+		m.renderSidebarItem(ViewReports, "Reports"),
 		"",
 		styleDim.Render("WORKSPACE"),
 		m.renderSidebarItem(ViewDefault, "Issues"),

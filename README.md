@@ -13,7 +13,7 @@ The current beta ships as two binaries:
 End users do not need Go installed. The installer downloads the correct TUI and kernel pair for the current machine.
 
 ```bash
-curl -fsSL https://github.com/webxsid/crona-node/releases/download/v0.2.0-beta.1/install-crona-tui.sh | sh
+curl -fsSL https://github.com/webxsid/crona/releases/download/v0.2.1/install-crona-tui.sh | sh
 ```
 
 By default this installs into `~/.local/bin`.
@@ -21,13 +21,13 @@ By default this installs into `~/.local/bin`.
 If you want to replace an existing install non-interactively, set `CRONA_INSTALL_FORCE=1` on the `sh` side of the pipe:
 
 ```bash
-curl -fsSL https://github.com/webxsid/crona-node/releases/download/v0.2.0-beta.1/install-crona-tui.sh | CRONA_INSTALL_FORCE=1 sh
+curl -fsSL https://github.com/webxsid/crona/releases/download/v0.2.1/install-crona-tui.sh | CRONA_INSTALL_FORCE=1 sh
 ```
 
 If you want the installer to prompt and wait for your `y/N` response, do not run it through `curl | sh`. Save it first and then execute it so the script can read from your terminal:
 
 ```bash
-curl -fsSL -o /tmp/install-crona-tui.sh https://github.com/webxsid/crona-node/releases/download/v0.2.0-beta.1/install-crona-tui.sh
+curl -fsSL -o /tmp/install-crona-tui.sh https://github.com/webxsid/crona/releases/download/v0.2.1/install-crona-tui.sh
 sh /tmp/install-crona-tui.sh
 ```
 
@@ -67,7 +67,7 @@ crona-tui
 ## Repository Structure
 
 ```text
-crona-node/
+crona/
 ├─ Makefile  # Project metadata and common tasks
 ├─ kernel/   # Local daemon: storage, commands, timer, IPC
 ├─ tui/      # Terminal UI (Bubble Tea)
@@ -190,7 +190,7 @@ Shared types, request DTOs, and IPC envelopes used by the kernel, TUI, and futur
 
 ### Environment
 
-The root [`/.env`](/Users/sm2101/Projects/crona-node/.env) file controls the local runtime mode.
+The root `.env` file controls the local runtime mode.
 
 ```bash
 CRONA_ENV=Prod
@@ -200,7 +200,7 @@ Set it to `Dev` to enable developer-only seed and clear helpers in the kernel an
 
 ### Project Tasks
 
-The root [`Makefile`](/Users/sm2101/Projects/crona-node/Makefile) replaces the old JS `package.json` role for shared scripts and basic project metadata.
+The root `Makefile` is the shared task runner for project metadata, builds, tests, and release helpers.
 
 ```bash
 make help
@@ -246,7 +246,7 @@ make test
 make lint
 ```
 
-The repo ships with [`/.golangci.yml`](/Users/sm2101/Projects/crona-node/.golangci.yml) as the shared lint baseline.
+The repo ships with `.golangci.yml` as the shared lint baseline.
 
 ### Neovim
 
