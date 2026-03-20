@@ -2,6 +2,7 @@ package app
 
 import (
 	"crona/tui/internal/logger"
+	"fmt"
 	"strings"
 
 	tea "github.com/charmbracelet/bubbletea"
@@ -29,67 +30,67 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		return m, nil
 	case reposLoadedMsg:
-		m.repos = msg.repos
+		m.repos = msg.Repos
 		m.clampFiltered(PaneRepos)
 		return m, nil
 	case streamsLoadedMsg:
-		m.streams = msg.streams
+		m.streams = msg.Streams
 		m.clampFiltered(PaneStreams)
 		return m, nil
 	case issuesLoadedMsg:
-		m.issues = msg.issues
+		m.issues = msg.Issues
 		m.clampFiltered(PaneIssues)
 		return m, nil
 	case habitsLoadedMsg:
-		m.habits = msg.habits
+		m.habits = msg.Habits
 		m.clampFiltered(PaneHabits)
 		return m, nil
 	case allIssuesLoadedMsg:
-		m.allIssues = msg.issues
+		m.allIssues = msg.Issues
 		if m.view == ViewDefault || m.view == ViewDaily {
 			m.clampFiltered(PaneIssues)
 		}
 		return m, nil
 	case dueHabitsLoadedMsg:
-		m.dueHabits = msg.habits
+		m.dueHabits = msg.Habits
 		if m.view == ViewDaily {
 			m.clampFiltered(PaneHabits)
 		}
 		return m, nil
 	case dailySummaryLoadedMsg:
-		m.dailySummary = msg.summary
-		if m.dashboardDate == "" && msg.summary != nil {
-			m.dashboardDate = msg.summary.Date
+		m.dailySummary = msg.Summary
+		if m.dashboardDate == "" && msg.Summary != nil {
+			m.dashboardDate = msg.Summary.Date
 		}
 		if m.view == ViewDaily {
 			m.clampFiltered(PaneIssues)
 		}
 		return m, nil
 	case dailyCheckInLoadedMsg:
-		m.dailyCheckIn = msg.checkIn
+		m.dailyCheckIn = msg.CheckIn
 		if m.dailyCheckIn != nil && m.wellbeingDate == "" {
 			m.wellbeingDate = m.dailyCheckIn.Date
 		}
 		return m, nil
 	case metricsRangeLoadedMsg:
-		m.metricsRange = msg.days
+		m.metricsRange = msg.Days
 		return m, nil
 	case metricsRollupLoadedMsg:
-		m.metricsRollup = msg.rollup
+		m.metricsRollup = msg.Rollup
 		return m, nil
 	case streaksLoadedMsg:
-		m.streaks = msg.streaks
+		m.streaks = msg.Streaks
 		return m, nil
 	case exportAssetsLoadedMsg:
-		m.exportAssets = msg.assets
+		m.exportAssets = msg.Assets
 		m.clampFiltered(PaneConfig)
 		return m, loadExportReports(m.client)
 	case exportReportsLoadedMsg:
-		m.exportReports = msg.reports
+		m.exportReports = msg.Reports
 		m.clampFiltered(PaneExportReports)
 		return m, nil
 	case exportReportDeletedMsg:
-		return m, tea.Batch(m.setStatus("Deleted report "+msg.name, false), loadExportReports(m.client))
+		return m, tea.Batch(m.setStatus("Deleted report "+msg.Name, false), loadExportReports(m.client))
 	case issueSessionsLoadedMsg:
 		var activeIssueID int64
 		if m.context != nil && m.context.IssueID != nil {
@@ -97,18 +98,18 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		} else if m.timer != nil && m.timer.IssueID != nil {
 			activeIssueID = *m.timer.IssueID
 		}
-		if msg.issueID == activeIssueID {
-			m.issueSessions = msg.sessions
+		if msg.IssueID == activeIssueID {
+			m.issueSessions = msg.Sessions
 		}
 		return m, nil
 	case sessionHistoryLoadedMsg:
-		m.sessionHistory = msg.sessions
+		m.sessionHistory = msg.Sessions
 		m.clampFiltered(PaneSessions)
 		return m, nil
 	case sessionDetailLoadedMsg:
-		m.sessionDetail = msg.detail
+		m.sessionDetail = msg.Detail
 		m.sessionDetailY = 0
-		if msg.detail == nil {
+		if msg.Detail == nil {
 			m.sessionDetailOpen = false
 			return m, m.setStatus("Session detail is unavailable", true)
 		}
@@ -117,10 +118,10 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.sessionDetailOpen = false
 		m.sessionDetail = nil
 		m.sessionDetailY = 0
-		logger.Errorf("session detail failed: %v", msg.err)
-		return m, m.setStatus("Error: "+msg.err.Error(), true)
+		logger.Errorf("session detail failed: %v", msg.Err)
+		return m, m.setStatus("Error: "+msg.Err.Error(), true)
 	case scratchpadsLoadedMsg:
-		m.scratchpads = msg.pads
+		m.scratchpads = msg.Pads
 		m.clampFiltered(PaneScratchpads)
 		if m.scratchpadMeta != nil {
 			if idx := m.scratchpadTabIndexByID(m.scratchpadMeta.ID); idx >= 0 {
@@ -137,7 +138,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		return m, nil
 	case stashesLoadedMsg:
-		m.stashes = msg.stashes
+		m.stashes = msg.Stashes
 		if m.dialogStashCursor >= len(m.stashes) {
 			if len(m.stashes) == 0 {
 				m.dialogStashCursor = 0
@@ -147,11 +148,11 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		return m, nil
 	case opsLoadedMsg:
-		m.ops = msg.ops
+		m.ops = msg.Ops
 		m.clampFiltered(PaneOps)
 		return m, nil
 	case contextLoadedMsg:
-		m.context = msg.ctx
+		m.context = msg.Ctx
 		if m.view == ViewDefault || m.view == ViewDaily {
 			m.clampFiltered(PaneIssues)
 			m.clampFiltered(PaneHabits)
@@ -162,7 +163,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.issueSessions = nil
 		return m, nil
 	case timerLoadedMsg:
-		m.timer = msg.timer
+		m.timer = msg.Timer
 		m.elapsed = 0
 		m.timerTickSeq++
 		if m.timer != nil && m.timer.State != "idle" {
@@ -185,19 +186,19 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		return m, historyCmd
 	case healthLoadedMsg:
-		m.health = msg.health
+		m.health = msg.Health
 		return m, nil
 	case settingsLoadedMsg:
-		m.settings = msg.settings
+		m.settings = msg.Settings
 		m.clampFiltered(PaneSettings)
 		return m, nil
 	case kernelInfoLoadedMsg:
-		m.kernelInfo = msg.info
+		m.kernelInfo = msg.Info
 		return m, nil
 	case healthTickMsg:
 		return m, tea.Batch(loadHealth(m.client), healthTickAfter())
 	case clearStatusMsg:
-		if msg.seq != m.statusSeq {
+		if msg.Seq != m.statusSeq {
 			return m, nil
 		}
 		m.statusMsg = ""
@@ -218,13 +219,13 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, tea.Batch(cmd, loadKernelInfo(m.client), loadRepos(m.client), loadAllIssues(m.client), loadDueHabits(m.client, m.currentDashboardDate()), loadDailySummary(m.client, m.dashboardDate), loadWellbeing(m.client, m.currentWellbeingDate()), loadSessionHistoryForModel(m, 200), loadScratchpads(m.client), loadStashes(m.client), loadOps(m.client, m.currentOpsLimit()), loadContext(m.client), loadTimer(m.client), loadSettings(m.client))
 	case sessionAmendedMsg:
 		cmd := m.setStatus("Session amended", false)
-		return m, tea.Batch(cmd, loadSessionHistoryForModel(m, 200), loadSessionDetail(m.client, msg.id))
+		return m, tea.Batch(cmd, loadSessionHistoryForModel(m, 200), loadSessionDetail(m.client, msg.ID))
 	case focusSessionChangedMsg:
 		cmds := []tea.Cmd{}
-		if msg.reloadContext {
+		if msg.ReloadContext {
 			cmds = append(cmds, loadContext(m.client))
 		}
-		if msg.reloadTimer {
+		if msg.ReloadTimer {
 			cmds = append(cmds, loadTimer(m.client))
 		}
 		if len(cmds) == 0 {
@@ -232,7 +233,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		return m, tea.Batch(cmds...)
 	case timerTickMsg:
-		if msg.seq != m.timerTickSeq {
+		if msg.Seq != m.timerTickSeq {
 			return m, nil
 		}
 		if m.timer != nil && m.timer.State != "idle" {
@@ -241,24 +242,24 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		return m, nil
 	case kernelEventMsg:
-		updated, cmd := handleKernelEvent(m, msg.event)
+		updated, cmd := handleKernelEvent(m, msg.Event)
 		return updated, tea.Batch(cmd, waitForEvent(eventChannel))
 	case errMsg:
-		if m.dialog == "export_report" && m.dialogProcessing {
+		if (m.dialog == "export_report" || m.dialog == "export_calendar_repo") && m.dialogProcessing {
 			m.dialog = ""
 			m.dialogChoiceItems = nil
 			m.dialogChoiceCursor = 0
 			m.dialogProcessing = false
 			m.dialogProcessingLabel = ""
 		}
-		logger.Errorf("update error: %v", msg.err)
-		return m, m.setStatus("Error: "+msg.err.Error(), true)
+		logger.Errorf("update error: %v", msg.Err)
+		return m, m.setStatus("Error: "+msg.Err.Error(), true)
 	case openScratchpadMsg:
 		return m.enterScratchpadPane(msg), nil
 	case scratchpadReloadedMsg:
-		m.scratchpadFilePath = msg.filePath
-		m.scratchpadRendered = msg.rendered
-		m.scratchpadViewport.SetContent(msg.rendered)
+		m.scratchpadFilePath = msg.FilePath
+		m.scratchpadRendered = msg.Rendered
+		m.scratchpadViewport.SetContent(msg.Rendered)
 		return m, nil
 	case editorDoneMsg:
 		cmds := []tea.Cmd{loadScratchpads(m.client), loadExportAssets(m.client)}
@@ -267,31 +268,55 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		return m, tea.Batch(cmds...)
 	case dailyReportGeneratedMsg:
-		m.exportAssets = &msg.result.Assets
-		if m.dialog == "export_report" && m.dialogProcessing {
+		m.exportAssets = &msg.Result.Assets
+		if (m.dialog == "export_report" || m.dialog == "export_calendar_repo") && m.dialogProcessing {
 			m.dialog = ""
 			m.dialogChoiceItems = nil
 			m.dialogChoiceCursor = 0
 			m.dialogProcessing = false
 			m.dialogProcessingLabel = ""
 		}
-		if msg.result.OutputMode == "file" && msg.result.FilePath != nil {
-			label := msg.result.Label
+		if msg.Result.OutputMode == "file" && msg.Result.FilePath != nil {
+			label := msg.Result.Label
 			if strings.TrimSpace(label) == "" {
 				label = "Report"
 			}
-			return m, tea.Batch(m.setStatus(label+" written to "+*msg.result.FilePath, false), loadExportReports(m.client))
+			return m, tea.Batch(m.setStatus(label+" written to "+*msg.Result.FilePath, false), loadExportReports(m.client))
 		}
 		return m, nil
-	case clipboardCopiedMsg:
-		if m.dialog == "export_report" && m.dialogProcessing {
+	case calendarExportGeneratedMsg:
+		m.exportAssets = &msg.Result.Assets
+		if (m.dialog == "export_report" || m.dialog == "export_calendar_repo") && m.dialogProcessing {
 			m.dialog = ""
 			m.dialogChoiceItems = nil
 			m.dialogChoiceCursor = 0
 			m.dialogProcessing = false
 			m.dialogProcessingLabel = ""
 		}
-		return m, m.setStatus(msg.message, false)
+		title := "Calendar Export"
+		name := strings.TrimSpace(msg.Result.RepoName)
+		if name == "" {
+			name = "Repo"
+		}
+		meta := fmt.Sprintf("Issues %s   Sessions %s", msg.Result.IssuesFilePath, msg.Result.SessionsFilePath)
+		body := strings.Join([]string{
+			"Issues ICS",
+			msg.Result.IssuesFilePath,
+			"",
+			"Sessions ICS",
+			msg.Result.SessionsFilePath,
+		}, "\n")
+		m = m.openViewEntityDialog(title, name, meta, body)
+		return m, m.setStatus("Calendar export written", false)
+	case clipboardCopiedMsg:
+		if (m.dialog == "export_report" || m.dialog == "export_calendar_repo") && m.dialogProcessing {
+			m.dialog = ""
+			m.dialogChoiceItems = nil
+			m.dialogChoiceCursor = 0
+			m.dialogProcessing = false
+			m.dialogProcessingLabel = ""
+		}
+		return m, m.setStatus(msg.Message, false)
 	case tea.KeyMsg:
 		if m.dialog != "" {
 			return m.updateDialog(msg)

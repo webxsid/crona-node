@@ -147,6 +147,8 @@ type CoreSettingsModel struct {
 	CyclesBeforeLongBreak int    `bun:"cycles_before_long_break,notnull,type:integer"`
 	AutoStartBreaks       bool   `bun:"auto_start_breaks,notnull,type:integer"`
 	AutoStartWork         bool   `bun:"auto_start_work,notnull,type:integer"`
+	BoundaryNotifications bool   `bun:"boundary_notifications_enabled,notnull,type:integer"`
+	BoundarySound         bool   `bun:"boundary_sound_enabled,notnull,type:integer"`
 	RepoSort              string `bun:"repo_sort,notnull,type:text"`
 	StreamSort            string `bun:"stream_sort,notnull,type:text"`
 	IssueSort             string `bun:"issue_sort,notnull,type:text"`

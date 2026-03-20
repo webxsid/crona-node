@@ -60,6 +60,14 @@ func InitSchema(ctx context.Context, db *bun.DB) error {
 			return err
 		}
 	}
+	for columnName, defaultValue := range map[string]int{
+		"boundary_notifications_enabled": 1,
+		"boundary_sound_enabled":         1,
+	} {
+		if err := ensureCoreSettingsBoolColumn(ctx, db, columnName, defaultValue); err != nil {
+			return err
+		}
+	}
 	if err := ensureHabitCompletionStatusColumn(ctx, db); err != nil {
 		return err
 	}
@@ -199,6 +207,39 @@ func ensureCoreSettingsColumn(ctx context.Context, db *bun.DB, columnName string
 	}
 
 	_, err = db.ExecContext(ctx, fmt.Sprintf("ALTER TABLE core_settings ADD COLUMN %s text NOT NULL DEFAULT '%s'", columnName, defaultValue))
+	return err
+}
+
+func ensureCoreSettingsBoolColumn(ctx context.Context, db *bun.DB, columnName string, defaultValue int) error {
+	rows, err := db.QueryContext(ctx, "PRAGMA table_info('core_settings')")
+	if err != nil {
+		return err
+	}
+	defer func() {
+		_ = rows.Close()
+	}()
+
+	var (
+		cid       int
+		name      string
+		typ       string
+		notnull   int
+		dfltValue sql.NullString
+		pk        int
+	)
+	for rows.Next() {
+		if err := rows.Scan(&cid, &name, &typ, &notnull, &dfltValue, &pk); err != nil {
+			return err
+		}
+		if name == columnName {
+			return nil
+		}
+	}
+	if err := rows.Err(); err != nil {
+		return err
+	}
+
+	_, err = db.ExecContext(ctx, fmt.Sprintf("ALTER TABLE core_settings ADD COLUMN %s integer NOT NULL DEFAULT %d", columnName, defaultValue))
 	return err
 }
 

@@ -127,7 +127,9 @@ func renderDailySummary(theme Theme, state ContentState, width, height int) stri
 					theme.StyleDim.Render(compactHabitProgress(habitMinutes, habitTargetMinutes)),
 					theme.StyleDim.Render(fmt.Sprintf("f%d r%d", failedHabits, max(0, totalHabits-completedHabits-failedHabits))),
 				},
-				func(barWidth int) string { return renderDailyHabitBar(theme, completedHabits, failedHabits, totalHabits, barWidth) },
+				func(barWidth int) string {
+					return renderDailyHabitBar(theme, completedHabits, failedHabits, totalHabits, barWidth)
+				},
 				tinySummaryBarWidth,
 			),
 		}
@@ -148,7 +150,9 @@ func renderDailySummary(theme Theme, state ContentState, width, height int) stri
 					theme.StyleNormal.Render(fmt.Sprintf("%d/%d completed", completedHabits, totalHabits)),
 					habitMeta,
 				},
-				func(barWidth int) string { return renderDailyHabitBar(theme, completedHabits, failedHabits, totalHabits, barWidth) },
+				func(barWidth int) string {
+					return renderDailyHabitBar(theme, completedHabits, failedHabits, totalHabits, barWidth)
+				},
 				compactSummaryBarWidth,
 			),
 		)
@@ -171,7 +175,9 @@ func renderDailySummary(theme Theme, state ContentState, width, height int) stri
 					theme.StyleNormal.Render(fmt.Sprintf("%d/%d completed", completedHabits, totalHabits)),
 					habitMeta,
 				},
-				func(barWidth int) string { return renderDailyHabitBar(theme, completedHabits, failedHabits, totalHabits, barWidth) },
+				func(barWidth int) string {
+					return renderDailyHabitBar(theme, completedHabits, failedHabits, totalHabits, barWidth)
+				},
 				compactSummaryBarWidth,
 			),
 			theme.StyleDim.Render(fmt.Sprintf("failed %d   remaining %d", failedHabits, max(0, totalHabits-completedHabits-failedHabits))),
@@ -250,14 +256,14 @@ func tinySummaryBarWidth(totalWidth, textWidth int) int {
 func compactIssueLegend(counts map[string]int) string {
 	order := []string{"done", "abandoned", "blocked", "in_progress", "in_review", "ready", "planned", "backlog"}
 	labels := map[string]string{
-		"done": "d",
-		"abandoned": "a",
-		"blocked": "b",
+		"done":        "d",
+		"abandoned":   "a",
+		"blocked":     "b",
 		"in_progress": "ip",
-		"in_review": "ir",
-		"ready": "r",
-		"planned": "p",
-		"backlog": "bk",
+		"in_review":   "ir",
+		"ready":       "r",
+		"planned":     "p",
+		"backlog":     "bk",
 	}
 	parts := make([]string, 0, len(order))
 	for _, status := range order {

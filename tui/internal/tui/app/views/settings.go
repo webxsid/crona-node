@@ -26,6 +26,8 @@ func renderSettingsView(theme Theme, state ContentState) string {
 		{"Cycles Before Long Break", fmt.Sprintf("%d", state.Settings.CyclesBeforeLongBreak)},
 		{"Auto Start Breaks", onOff(state.Settings.AutoStartBreaks)},
 		{"Auto Start Work", onOff(state.Settings.AutoStartWork)},
+		{"Boundary Notifications", onOff(state.Settings.BoundaryNotifications)},
+		{"Boundary Sound", onOff(state.Settings.BoundarySound)},
 		{"Repo Sort", repoSortLabel(state.Settings.RepoSort)},
 		{"Stream Sort", streamSortLabel(state.Settings.StreamSort)},
 		{"Issue Sort", issueSortLabel(state.Settings.IssueSort)},

@@ -67,8 +67,14 @@ type StashEventPayload struct {
 }
 
 type TimerBoundaryPayload struct {
-	From SessionSegmentType `json:"from"`
-	To   SessionSegmentType `json:"to"`
+	From       SessionSegmentType `json:"from"`
+	To         SessionSegmentType `json:"to"`
+	Title      string             `json:"title"`
+	Message    string             `json:"message"`
+	RepoName   *string            `json:"repoName,omitempty"`
+	StreamName *string            `json:"streamName,omitempty"`
+	IssueID    *int64             `json:"issueId,omitempty"`
+	IssueTitle *string            `json:"issueTitle,omitempty"`
 }
 
 type TimerTickPayload struct {

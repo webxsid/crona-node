@@ -41,7 +41,7 @@ func configItems(status *api.ExportAssetStatus) []string {
 	if status == nil {
 		return nil
 	}
-	items := make([]string, 0, len(status.TemplateAssets)+2)
+	items := make([]string, 0, len(status.TemplateAssets)+3)
 	for _, asset := range status.TemplateAssets {
 		items = append(items, fmt.Sprintf("%-24s %s", asset.Label, configAssetValue(asset)))
 	}
@@ -50,6 +50,7 @@ func configItems(status *api.ExportAssetStatus) []string {
 		pdfRenderer = status.PDFRendererName
 	}
 	items = append(items, fmt.Sprintf("%-24s %s", "Reports directory", status.ReportsDir))
+	items = append(items, fmt.Sprintf("%-24s %s", "ICS export directory", status.ICSDir))
 	items = append(items, fmt.Sprintf("%-24s %s", "PDF renderer", pdfRenderer))
 	return items
 }

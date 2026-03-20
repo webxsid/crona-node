@@ -129,8 +129,16 @@ type ExportReportRequest struct {
 
 type DailyReportRequest = ExportReportRequest
 
+type ExportCalendarRequest struct {
+	RepoID int64 `json:"repoId"`
+}
+
 type ExportReportsDirUpdateRequest struct {
 	ReportsDir string `json:"reportsDir"`
+}
+
+type ExportICSDirUpdateRequest struct {
+	ICSDir string `json:"icsDir"`
 }
 
 type ExportReportDeleteRequest struct {

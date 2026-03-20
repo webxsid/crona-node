@@ -79,6 +79,104 @@ func GenerateReport(ctx context.Context, c *core.Context, paths runtime.Paths, i
 	}
 }
 
+func GenerateCalendarExport(ctx context.Context, c *core.Context, paths runtime.Paths, input shareddto.ExportCalendarRequest) (*sharedtypes.CalendarExportResult, error) {
+	if input.RepoID == 0 {
+		return nil, errors.New("calendar export requires repoId")
+	}
+	repo, err := c.Repos.GetByID(ctx, input.RepoID, c.UserID)
+	if err != nil {
+		return nil, err
+	}
+	if repo == nil {
+		return nil, errors.New("repo not found")
+	}
+
+	allIssues, err := corecommands.ListAllIssues(ctx, c)
+	if err != nil {
+		return nil, err
+	}
+	issues := make([]sharedtypes.IssueWithMeta, 0)
+	for _, issue := range allIssues {
+		if issue.RepoID == repo.ID && issue.TodoForDate != nil && strings.TrimSpace(*issue.TodoForDate) != "" {
+			issues = append(issues, issue)
+		}
+	}
+	sort.SliceStable(issues, func(i, j int) bool {
+		leftDate := strings.TrimSpace(valueOrEmpty(issues[i].TodoForDate))
+		rightDate := strings.TrimSpace(valueOrEmpty(issues[j].TodoForDate))
+		if leftDate != rightDate {
+			return leftDate < rightDate
+		}
+		if issues[i].StreamName != issues[j].StreamName {
+			return issues[i].StreamName < issues[j].StreamName
+		}
+		return issues[i].Title < issues[j].Title
+	})
+
+	entries, err := corecommands.ListSessionHistory(ctx, c, struct {
+		RepoID   *int64
+		StreamID *int64
+		IssueID  *int64
+		Since    *string
+		Until    *string
+		Limit    *int
+		Offset   *int
+	}{RepoID: &repo.ID}, false)
+	if err != nil {
+		return nil, err
+	}
+	sort.SliceStable(entries, func(i, j int) bool {
+		return entries[i].StartTime < entries[j].StartTime
+	})
+
+	scope := &sharedtypes.ExportReportScope{
+		RepoID:   &repo.ID,
+		RepoName: &repo.Name,
+	}
+	repoSlug := fmt.Sprintf("%d-%s", repo.ID, slugify(repo.Name))
+
+	issuesBody := renderIssueCalendarICS(issues)
+	issuesPath, err := WriteReport(paths, reportWriteSpec{
+		Kind:       sharedtypes.ExportReportKindCalendar,
+		Label:      "Calendar Issues Export",
+		ScopeLabel: repo.Name,
+		Format:     sharedtypes.ExportFormatICS,
+		BaseName:   filepath.Join(repoSlug, "issues"),
+	}, []byte(issuesBody))
+	if err != nil {
+		return nil, err
+	}
+
+	sessionsBody := renderSessionCalendarICS(entries, allIssues)
+	sessionsPath, err := WriteReport(paths, reportWriteSpec{
+		Kind:       sharedtypes.ExportReportKindCalendar,
+		Label:      "Calendar Sessions Export",
+		ScopeLabel: repo.Name,
+		Format:     sharedtypes.ExportFormatICS,
+		BaseName:   filepath.Join(repoSlug, "sessions"),
+	}, []byte(sessionsBody))
+	if err != nil {
+		return nil, err
+	}
+
+	assets, err := EnsureAssets(paths)
+	if err != nil {
+		return nil, err
+	}
+
+	return &sharedtypes.CalendarExportResult{
+		Kind:             sharedtypes.ExportReportKindCalendar,
+		Label:            "Calendar Export",
+		Scope:            scope,
+		OutputMode:       sharedtypes.ExportOutputModeFile,
+		RepoID:           repo.ID,
+		RepoName:         repo.Name,
+		IssuesFilePath:   issuesPath,
+		SessionsFilePath: sessionsPath,
+		Assets:           assets,
+	}, nil
+}
+
 func generateDailyExport(ctx context.Context, c *core.Context, paths runtime.Paths, input shareddto.ExportReportRequest) (*sharedtypes.ExportReportResult, error) {
 	date := normalizeReportDate(input.Date)
 	format := normalizeNarrativeFormat(input.Format)
@@ -484,6 +582,9 @@ func finalizeReport(paths runtime.Paths, spec reportWriteSpec, content string, m
 	if spec.Kind == sharedtypes.ExportReportKindCSV && mode != sharedtypes.ExportOutputModeFile {
 		return nil, errors.New("csv export only supports file output")
 	}
+	if spec.Kind == sharedtypes.ExportReportKindCalendar && mode != sharedtypes.ExportOutputModeFile {
+		return nil, errors.New("calendar export only supports file output")
+	}
 	if format == sharedtypes.ExportFormatPDF && mode != sharedtypes.ExportOutputModeFile {
 		return nil, errors.New("pdf export only supports file output")
 	}
@@ -584,7 +685,162 @@ func normalizeFormatForKind(kind sharedtypes.ExportReportKind, format sharedtype
 	if kind == sharedtypes.ExportReportKindCSV {
 		return sharedtypes.ExportFormatCSV
 	}
+	if kind == sharedtypes.ExportReportKindCalendar {
+		return sharedtypes.ExportFormatICS
+	}
 	return normalizeNarrativeFormat(format)
+}
+
+func icsDateTime(value time.Time) string {
+	return value.UTC().Format("20060102T150405Z")
+}
+
+func icsDate(value time.Time) string {
+	return value.UTC().Format("20060102")
+}
+
+func icsEscape(value string) string {
+	replacer := strings.NewReplacer(
+		`\`, `\\`,
+		";", `\;`,
+		",", `\,`,
+		"\n", `\n`,
+		"\r", "",
+	)
+	return replacer.Replace(strings.TrimSpace(value))
+}
+
+func renderIssueCalendarICS(issues []sharedtypes.IssueWithMeta) string {
+	lines := []string{
+		"BEGIN:VCALENDAR",
+		"VERSION:2.0",
+		"PRODID:-//Crona//Issue Calendar Export//EN",
+		"CALSCALE:GREGORIAN",
+		"METHOD:PUBLISH",
+	}
+	now := time.Now().UTC()
+	for _, issue := range issues {
+		if issue.TodoForDate == nil || strings.TrimSpace(*issue.TodoForDate) == "" {
+			continue
+		}
+		day, err := time.Parse("2006-01-02", strings.TrimSpace(*issue.TodoForDate))
+		if err != nil {
+			continue
+		}
+		descriptionParts := []string{
+			"Repo: " + issue.RepoName,
+			"Stream: " + issue.StreamName,
+			"Status: " + string(issue.Status),
+			"Planned for: " + strings.TrimSpace(*issue.TodoForDate),
+		}
+		if issue.EstimateMinutes != nil {
+			descriptionParts = append(descriptionParts, fmt.Sprintf("Estimate: %dm", *issue.EstimateMinutes))
+		}
+		if issue.Description != nil && strings.TrimSpace(*issue.Description) != "" {
+			descriptionParts = append(descriptionParts, "Description: "+strings.TrimSpace(*issue.Description))
+		}
+		if issue.Notes != nil && strings.TrimSpace(*issue.Notes) != "" {
+			descriptionParts = append(descriptionParts, "Issue notes: "+strings.TrimSpace(*issue.Notes))
+		}
+		lines = append(lines,
+			"BEGIN:VEVENT",
+			"UID:"+icsEscape(fmt.Sprintf("issue-%d-%s@crona", issue.ID, strings.TrimSpace(*issue.TodoForDate))),
+			"DTSTAMP:"+icsDateTime(now),
+			"DTSTART;VALUE=DATE:"+icsDate(day),
+			"DTEND;VALUE=DATE:"+icsDate(day.AddDate(0, 0, 1)),
+			"SUMMARY:"+icsEscape(issue.Title),
+			"DESCRIPTION:"+icsEscape(strings.Join(descriptionParts, "\n")),
+			"END:VEVENT",
+		)
+	}
+	lines = append(lines, "END:VCALENDAR")
+	return strings.Join(lines, "\r\n")
+}
+
+func renderSessionCalendarICS(entries []sharedtypes.SessionHistoryEntry, issues []sharedtypes.IssueWithMeta) string {
+	issueMeta := make(map[int64]sharedtypes.IssueWithMeta, len(issues))
+	for _, issue := range issues {
+		issueMeta[issue.ID] = issue
+	}
+
+	lines := []string{
+		"BEGIN:VCALENDAR",
+		"VERSION:2.0",
+		"PRODID:-//Crona//Session Calendar Export//EN",
+		"CALSCALE:GREGORIAN",
+		"METHOD:PUBLISH",
+	}
+	now := time.Now().UTC()
+	for _, entry := range entries {
+		meta, ok := issueMeta[entry.IssueID]
+		if !ok {
+			continue
+		}
+		startAt, err := time.Parse(time.RFC3339, entry.StartTime)
+		if err != nil {
+			continue
+		}
+		endAt := startAt
+		if entry.EndTime != nil && strings.TrimSpace(*entry.EndTime) != "" {
+			if parsed, err := time.Parse(time.RFC3339, *entry.EndTime); err == nil {
+				endAt = parsed
+			}
+		} else if entry.DurationSeconds != nil && *entry.DurationSeconds > 0 {
+			endAt = startAt.Add(time.Duration(*entry.DurationSeconds) * time.Second)
+		}
+		descriptionParts := []string{
+			"Repo: " + meta.RepoName,
+			"Stream: " + meta.StreamName,
+			"Status: " + string(meta.Status),
+		}
+		if meta.EstimateMinutes != nil {
+			descriptionParts = append(descriptionParts, fmt.Sprintf("Estimate: %dm", *meta.EstimateMinutes))
+		}
+		if meta.Description != nil && strings.TrimSpace(*meta.Description) != "" {
+			descriptionParts = append(descriptionParts, "Description: "+strings.TrimSpace(*meta.Description))
+		}
+		if meta.Notes != nil && strings.TrimSpace(*meta.Notes) != "" {
+			descriptionParts = append(descriptionParts, "Issue notes: "+strings.TrimSpace(*meta.Notes))
+		}
+		parsedNotes := sessionnotes.Parse(entry.Notes)
+		for _, section := range []sharedtypes.SessionNoteSection{
+			sharedtypes.SessionNoteSectionCommit,
+			sharedtypes.SessionNoteSectionContext,
+			sharedtypes.SessionNoteSectionWork,
+			sharedtypes.SessionNoteSectionNotes,
+		} {
+			if text := strings.TrimSpace(parsedNotes[section]); text != "" {
+				descriptionParts = append(descriptionParts, sessionSectionLabel(section)+": "+text)
+			}
+		}
+		lines = append(lines,
+			"BEGIN:VEVENT",
+			"UID:"+icsEscape(fmt.Sprintf("session-%s@crona", entry.ID)),
+			"DTSTAMP:"+icsDateTime(now),
+			"DTSTART:"+icsDateTime(startAt.UTC()),
+			"DTEND:"+icsDateTime(endAt.UTC()),
+			"SUMMARY:"+icsEscape(meta.Title),
+			"DESCRIPTION:"+icsEscape(strings.Join(descriptionParts, "\n")),
+			"END:VEVENT",
+		)
+	}
+	lines = append(lines, "END:VCALENDAR")
+	return strings.Join(lines, "\r\n")
+}
+
+func sessionSectionLabel(section sharedtypes.SessionNoteSection) string {
+	switch section {
+	case sharedtypes.SessionNoteSectionCommit:
+		return "Commit"
+	case sharedtypes.SessionNoteSectionContext:
+		return "Context"
+	case sharedtypes.SessionNoteSectionWork:
+		return "Work"
+	case sharedtypes.SessionNoteSectionNotes:
+		return "Notes"
+	default:
+		return "Notes"
+	}
 }
 
 func slugify(value string) string {
@@ -610,6 +866,13 @@ func slugify(value string) string {
 		return "report"
 	}
 	return out
+}
+
+func valueOrEmpty(value *string) string {
+	if value == nil {
+		return ""
+	}
+	return *value
 }
 
 func joinNonEmpty(sep string, values ...string) string {

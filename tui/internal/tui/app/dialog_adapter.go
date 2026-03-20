@@ -135,10 +135,17 @@ func (m Model) openViewEntityDialog(title string, name string, meta string, body
 }
 func (m Model) openExportDailyDialog() Model {
 	includePDF := m.exportAssets != nil && m.exportAssets.PDFRendererAvailable
-	return m.withDialogState(dialogpkg.OpenExportDaily(m.dialogState(), m.currentDashboardDate(), includePDF))
+	var checkedRepoID *int64
+	if m.context != nil {
+		checkedRepoID = m.context.RepoID
+	}
+	return m.withDialogState(dialogpkg.OpenExportDaily(m.dialogState(), m.currentDashboardDate(), includePDF, m.repos, checkedRepoID))
 }
 func (m Model) openExportReportsDirDialog(current string) Model {
 	return m.withDialogState(dialogpkg.OpenExportReportsDir(m.dialogState(), current))
+}
+func (m Model) openExportICSDirDialog(current string) Model {
+	return m.withDialogState(dialogpkg.OpenExportICSDir(m.dialogState(), current))
 }
 
 func (m Model) updateDialog(msg tea.KeyMsg) (Model, tea.Cmd) {
@@ -192,6 +199,8 @@ func (m Model) dialogState() dialogpkg.State {
 		CheckInDate:        m.dialogCheckInDate,
 		RepoID:             m.dialogRepoID,
 		RepoName:           m.dialogRepoName,
+		RepoItems:          m.dialogRepoItems,
+		RepoItemIDs:        m.dialogRepoItemIDs,
 		StreamID:           m.dialogStreamID,
 		StreamName:         m.dialogStreamName,
 		RepoIndex:          m.dialogRepoIndex,
@@ -232,6 +241,8 @@ func (m Model) withDialogState(state dialogpkg.State) Model {
 	m.dialogCheckInDate = state.CheckInDate
 	m.dialogRepoID = state.RepoID
 	m.dialogRepoName = state.RepoName
+	m.dialogRepoItems = state.RepoItems
+	m.dialogRepoItemIDs = state.RepoItemIDs
 	m.dialogStreamID = state.StreamID
 	m.dialogStreamName = state.StreamName
 	m.dialogRepoIndex = state.RepoIndex
@@ -295,6 +306,20 @@ func (m Model) dialogActionCmd(action dialogpkg.Action) tea.Cmd {
 		if action.OutputMode == sharedtypes.ExportOutputModeClipboard && action.ReportKind == sharedtypes.ExportReportKindDaily {
 			return cmdCopyDailyReport(m.client, action.CheckInDate)
 		}
+		if action.ReportKind == sharedtypes.ExportReportKindCalendar {
+			repoID := action.RepoID
+			if repoID == 0 {
+				if m.context != nil && m.context.RepoID != nil {
+					repoID = *m.context.RepoID
+				} else if len(m.repos) > 0 {
+					repoID = m.repos[0].ID
+				}
+			}
+			if repoID == 0 {
+				return func() tea.Msg { return errMsg{Err: errors.New("calendar export requires a repo")} }
+			}
+			return cmdGenerateCalendarExport(m.client, shareddto.ExportCalendarRequest{RepoID: repoID})
+		}
 		req := shareddto.ExportReportRequest{
 			Kind:       action.ReportKind,
 			Date:       action.CheckInDate,
@@ -303,13 +328,13 @@ func (m Model) dialogActionCmd(action dialogpkg.Action) tea.Cmd {
 		}
 		if action.ReportKind == sharedtypes.ExportReportKindRepo {
 			if m.context == nil || m.context.RepoID == nil {
-				return func() tea.Msg { return errMsg{errors.New("repo report requires an active repo context")} }
+				return func() tea.Msg { return errMsg{Err: errors.New("repo report requires an active repo context")} }
 			}
 			req.RepoID = m.context.RepoID
 		}
 		if action.ReportKind == sharedtypes.ExportReportKindStream {
 			if m.context == nil || m.context.StreamID == nil {
-				return func() tea.Msg { return errMsg{errors.New("stream report requires an active stream context")} }
+				return func() tea.Msg { return errMsg{Err: errors.New("stream report requires an active stream context")} }
 			}
 			req.StreamID = m.context.StreamID
 			if m.context.RepoID != nil {
@@ -325,6 +350,8 @@ func (m Model) dialogActionCmd(action dialogpkg.Action) tea.Cmd {
 		return cmdGenerateReport(m.client, req)
 	case "set_export_reports_dir":
 		return cmdSetExportReportsDir(m.client, action.Path)
+	case "set_export_ics_dir":
+		return cmdSetExportICSDir(m.client, action.Path)
 	case "delete":
 		switch action.Name {
 		case "repo":
@@ -378,7 +405,7 @@ func openEditor(filePath string) tea.Cmd {
 	c := exec.Command(editor, filePath)
 	return tea.ExecProcess(c, func(err error) tea.Msg {
 		if err != nil {
-			return errMsg{err}
+			return errMsg{Err: err}
 		}
 		return editorDoneMsg{}
 	})
@@ -395,12 +422,12 @@ func openDefaultViewer(filePath string) tea.Cmd {
 		c = exec.Command("cmd", "/c", "start", "", filePath)
 	default:
 		return func() tea.Msg {
-			return errMsg{err: os.ErrInvalid}
+			return errMsg{Err: os.ErrInvalid}
 		}
 	}
 	return tea.ExecProcess(c, func(err error) tea.Msg {
 		if err != nil {
-			return errMsg{err}
+			return errMsg{Err: err}
 		}
 		return nil
 	})

@@ -20,6 +20,7 @@ type ExportAssetStatus = sharedtypes.ExportAssetStatus
 type ExportTemplateAsset = sharedtypes.ExportTemplateAsset
 type ExportReportFile = sharedtypes.ExportReportFile
 type ExportReportResult = sharedtypes.ExportReportResult
+type CalendarExportResult = sharedtypes.CalendarExportResult
 type DailyReportResult = sharedtypes.DailyReportResult
 type ExportReportKind = sharedtypes.ExportReportKind
 type ExportOutputMode = sharedtypes.ExportOutputMode

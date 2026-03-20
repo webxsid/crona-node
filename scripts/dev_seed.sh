@@ -2,4 +2,4 @@
 set -eu
 
 cd "$(dirname "$0")/.."
-go run ./cli/cmd/crona-dev seed
+CRONA_ENV=Dev go run ./cli/cmd/crona dev seed

@@ -3,20 +3,12 @@ package app
 import (
 	"fmt"
 	"strings"
-	"time"
 
 	sharedtypes "crona/shared/types"
-	"crona/tui/internal/api"
+	helperpkg "crona/tui/internal/tui/app/helpers"
 
 	tea "github.com/charmbracelet/bubbletea"
 )
-
-func sessionCommit(detail *api.SessionDetail) string {
-	if detail == nil || detail.ParsedNotes == nil {
-		return ""
-	}
-	return strings.TrimSpace(detail.ParsedNotes[sharedtypes.SessionNoteSectionCommit])
-}
 
 func (m Model) sessionDetailContentLines() []string {
 	if m.sessionDetail == nil {
@@ -28,7 +20,7 @@ func (m Model) sessionDetailContentLines() []string {
 	if detail.EndTime != nil && strings.TrimSpace(*detail.EndTime) != "" {
 		ended = *detail.EndTime
 	}
-	duration := formatSessionDurationText(detail.DurationSeconds, detail.StartTime, detail.EndTime)
+	duration := helperpkg.FormatSessionDurationText(detail.DurationSeconds, detail.StartTime, detail.EndTime)
 	lines := []string{
 		fmt.Sprintf("Repo: %s", detail.RepoName),
 		fmt.Sprintf("Stream: %s", detail.StreamName),
@@ -37,8 +29,8 @@ func (m Model) sessionDetailContentLines() []string {
 		fmt.Sprintf("Ended: %s", ended),
 		fmt.Sprintf("Duration: %s", duration),
 		"",
-		fmt.Sprintf("Work: %s", formatClockText(detail.WorkSummary.WorkSeconds)),
-		fmt.Sprintf("Rest: %s", formatClockText(detail.WorkSummary.RestSeconds)),
+		fmt.Sprintf("Work: %s", helperpkg.FormatClockText(detail.WorkSummary.WorkSeconds)),
+		fmt.Sprintf("Rest: %s", helperpkg.FormatClockText(detail.WorkSummary.RestSeconds)),
 		fmt.Sprintf("Segments: %d work / %d rest", detail.WorkSummary.WorkSegments, detail.WorkSummary.RestSegments),
 	}
 
@@ -73,30 +65,6 @@ func (m Model) sessionDetailViewportHeight() int {
 		return max(6, m.height-8)
 	}
 	return min(18, m.height-8)
-}
-
-func formatClockText(totalSeconds int) string {
-	if totalSeconds < 0 {
-		totalSeconds = 0
-	}
-	hours := totalSeconds / 3600
-	minutes := (totalSeconds % 3600) / 60
-	seconds := totalSeconds % 60
-	return fmt.Sprintf("%02d:%02d:%02d", hours, minutes, seconds)
-}
-
-func formatSessionDurationText(durationSeconds *int, start string, end *string) string {
-	if durationSeconds != nil {
-		return formatClockText(*durationSeconds)
-	}
-	if end != nil && *end != "" {
-		st, se := time.Parse(time.RFC3339, start)
-		et, ee := time.Parse(time.RFC3339, *end)
-		if se == nil && ee == nil {
-			return formatClockText(int(et.Sub(st).Seconds()))
-		}
-	}
-	return "-"
 }
 
 func (m Model) sessionDetailMaxOffset() int {
@@ -135,7 +103,7 @@ func (m Model) updateSessionDetailOverlay(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		if m.sessionDetail == nil {
 			return m, nil
 		}
-		return m.openAmendSessionDialog(m.sessionDetail.ID, sessionCommit(m.sessionDetail)), nil
+		return m.openAmendSessionDialog(m.sessionDetail.ID, helperpkg.SessionCommit(m.sessionDetail)), nil
 	}
 	return m, nil
 }

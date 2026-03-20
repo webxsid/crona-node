@@ -8,9 +8,10 @@ import (
 
 	"crona/kernel/internal/core"
 	corecommands "crona/kernel/internal/core/commands"
-	"crona/kernel/internal/export"
 	"crona/kernel/internal/events"
+	"crona/kernel/internal/export"
 	"crona/kernel/internal/ipc"
+	"crona/kernel/internal/notify"
 	"crona/kernel/internal/runtime"
 	"crona/kernel/internal/store"
 	"crona/shared/config"
@@ -63,6 +64,7 @@ func Run(ctx context.Context) error {
 	if err := commandCtx.InitDefaults(runCtx); err != nil {
 		return fmt.Errorf("init command defaults: %w", err)
 	}
+	_ = notify.Start(runCtx, commandCtx, bus, logger)
 	if _, err := export.EnsureAssets(paths); err != nil {
 		return fmt.Errorf("ensure export assets: %w", err)
 	}

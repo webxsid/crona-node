@@ -2,27 +2,19 @@ package views
 
 import "github.com/charmbracelet/lipgloss"
 
-func RenderDailyForTesting(theme Theme, state ContentState) string {
-	return renderDailyView(theme, state)
-}
-
-func RenderDefaultForTesting(theme Theme, state ContentState) string {
-	return renderDefaultView(theme, state)
-}
-
-func RenderWellbeingForTesting(theme Theme, state ContentState) string {
+func RenderDaily(theme Theme, state ContentState) string   { return renderDailyView(theme, state) }
+func RenderDefault(theme Theme, state ContentState) string { return renderDefaultView(theme, state) }
+func RenderWellbeing(theme Theme, state ContentState) string {
 	return renderWellbeingView(theme, state)
 }
-
-func RenderExportForTesting(theme Theme, state ContentState) string {
-	return renderReportsView(theme, state)
-}
-
-func RenderPaneBoxForTesting(theme Theme, active bool, width, height int, content string) string {
+func RenderReports(theme Theme, state ContentState) string  { return renderReportsView(theme, state) }
+func RenderSettings(theme Theme, state ContentState) string { return renderSettingsView(theme, state) }
+func RenderConfig(theme Theme, state ContentState) string   { return renderConfigView(theme, state) }
+func RenderPaneBox(theme Theme, active bool, width, height int, content string) string {
 	return renderPaneBox(theme, active, width, height, content)
 }
 
-func TestingTheme() Theme {
+func TestTheme() Theme {
 	return Theme{
 		ColorBlue:    lipgloss.Color("12"),
 		ColorCyan:    lipgloss.Color("14"),

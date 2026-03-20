@@ -8,6 +8,7 @@ import (
 	sharedtypes "crona/shared/types"
 	"crona/tui/internal/api"
 	"crona/tui/internal/logger"
+	helperpkg "crona/tui/internal/tui/app/helpers"
 	"crona/tui/internal/tui/app/views"
 
 	tea "github.com/charmbracelet/bubbletea"
@@ -120,7 +121,7 @@ func (m Model) selectedMetaRepo() (int64, string, bool) {
 		return m.repos[rawIdx].ID, m.repos[rawIdx].Name, true
 	}
 	if m.context != nil && m.context.RepoID != nil {
-		return *m.context.RepoID, firstNonEmpty(m.context.RepoName, nil), true
+		return *m.context.RepoID, helperpkg.FirstNonEmpty(m.context.RepoName, nil), true
 	}
 	return 0, "", false
 }
@@ -139,7 +140,7 @@ func (m Model) selectedMetaStream() (int64, string, string, bool) {
 		if m.context.RepoName != nil {
 			repoName = *m.context.RepoName
 		}
-		return *m.context.StreamID, firstNonEmpty(m.context.StreamName, nil), repoName, true
+		return *m.context.StreamID, helperpkg.FirstNonEmpty(m.context.StreamName, nil), repoName, true
 	}
 	return 0, "", "", false
 }

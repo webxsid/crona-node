@@ -5,7 +5,17 @@ PROJECT_DESCRIPTION := Local-first work kernel, TUI, and shared contracts
 GO ?= go
 GOCACHE ?= /tmp/crona-go-cache
 
-.PHONY: help meta build test test-shared test-kernel test-tui test-cli fmt vet lint install-lint run-kernel run-tui install-kernel install-tui seed-dev clear-dev release
+ifeq ($(CRONA_ENV),Dev)
+BIN_SUFFIX := -dev
+else
+BIN_SUFFIX :=
+endif
+
+CLI_BINARY := $(PROJECT_NAME)$(BIN_SUFFIX)
+KERNEL_BINARY := $(PROJECT_NAME)-kernel$(BIN_SUFFIX)
+TUI_BINARY := $(PROJECT_NAME)-tui$(BIN_SUFFIX)
+
+.PHONY: help meta build test test-shared test-kernel test-tui test-cli fmt vet lint install-lint run-kernel run-tui install-kernel install-tui install-cli seed-dev clear-dev release
 
 help:
 	@printf "%s %s\n" "$(PROJECT_NAME)" "$(PROJECT_VERSION)"
@@ -23,8 +33,9 @@ help:
 	@printf "  make install-lint    Install golangci-lint into GOPATH/bin\n"
 	@printf "  make run-kernel      Run the kernel daemon\n"
 	@printf "  make run-tui         Run the terminal UI\n"
-	@printf "  make install-kernel  Install crona-kernel into GOPATH/bin\n"
-	@printf "  make install-tui     Build and install the TUI binary into ./bin\n"
+	@printf "  make install-kernel  Build %s into ./bin\n" "$(KERNEL_BINARY)"
+	@printf "  make install-tui     Build %s into ./bin\n" "$(TUI_BINARY)"
+	@printf "  make install-cli     Build %s into ./bin\n" "$(CLI_BINARY)"
 	@printf "  make seed-dev        Seed dev data through the kernel\n"
 	@printf "  make clear-dev       Clear dev data through the kernel\n"
 	@printf "  make release VERSION=<tag>  Build release binaries and installer\n"
@@ -76,14 +87,19 @@ run-kernel:
 	cd kernel && GOCACHE=$(GOCACHE) $(GO) run ./cmd/crona-kernel
 
 run-tui:
-	cd tui && GOCACHE=$(GOCACHE) $(GO) run .
+	cd tui && PATH="$(CURDIR)/bin:$$PATH" GOCACHE=$(GOCACHE) $(GO) run .
 
 install-kernel:
-	cd kernel && GOCACHE=$(GOCACHE) $(GO) install ./cmd/crona-kernel
+	mkdir -p bin
+	cd kernel && GOCACHE=$(GOCACHE) $(GO) build -o ../bin/$(KERNEL_BINARY) ./cmd/crona-kernel
 
 install-tui:
 	mkdir -p bin
-	cd tui && GOCACHE=$(GOCACHE) $(GO) build -o ../bin/crona-tui .
+	cd tui && GOCACHE=$(GOCACHE) $(GO) build -o ../bin/$(TUI_BINARY) .
+
+install-cli:
+	mkdir -p bin
+	cd cli && GOCACHE=$(GOCACHE) $(GO) build -o ../bin/$(CLI_BINARY) ./cmd/crona
 
 seed-dev:
 	sh ./scripts/dev_seed.sh

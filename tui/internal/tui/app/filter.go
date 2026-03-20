@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 
+	helperpkg "crona/tui/internal/tui/app/helpers"
 	"crona/tui/internal/tui/app/views"
 
 	"github.com/charmbracelet/bubbles/textinput"
@@ -35,7 +36,7 @@ func (m *Model) paneItems(pane Pane) []string {
 				if issue.EstimateMinutes != nil {
 					estimate = fmt.Sprintf(" %dm", *issue.EstimateMinutes)
 				}
-				due := issueDueLabel(issue.TodoForDate)
+				due := helperpkg.IssueDueLabel(issue.TodoForDate)
 				if due != "" {
 					due = " " + due
 				}
@@ -57,7 +58,7 @@ func (m *Model) paneItems(pane Pane) []string {
 				if issue.EstimateMinutes != nil {
 					estimate = fmt.Sprintf(" %dm", *issue.EstimateMinutes)
 				}
-				due := issueDueLabel(issue.TodoForDate)
+				due := helperpkg.IssueDueLabel(issue.TodoForDate)
 				if due != "" {
 					due = " " + due
 				}
@@ -67,7 +68,7 @@ func (m *Model) paneItems(pane Pane) []string {
 		}
 		items := make([]string, 0, len(m.issues))
 		for _, issue := range m.issues {
-			due := issueDueLabel(issue.TodoForDate)
+			due := helperpkg.IssueDueLabel(issue.TodoForDate)
 			if due != "" {
 				due = " " + due
 			}
@@ -108,7 +109,7 @@ func (m *Model) paneItems(pane Pane) []string {
 	case PaneSessions:
 		items := make([]string, 0, len(m.sessionHistory))
 		for _, session := range m.sessionHistory {
-			items = append(items, sessionHistorySummary(session))
+			items = append(items, helperpkg.SessionHistorySummary(session))
 		}
 		return items
 	case PaneOps:
@@ -214,12 +215,12 @@ func (m Model) updateFilter(msg tea.KeyMsg) (Model, tea.Cmd) {
 func (m Model) renderFilterLine(pane Pane, width int) string {
 	if m.filterEditing && m.filterPane == pane {
 		value := m.filterInput.View()
-		return styleDim.Render("filter: ") + truncate(value, width-8)
+		return styleDim.Render("filter: ") + helperpkg.Truncate(value, width-8)
 	}
 
 	query := m.filters[pane]
 	if strings.TrimSpace(query) == "" {
 		return styleDim.Render("filter: /")
 	}
-	return styleDim.Render("filter: ") + truncate(query, width-8)
+	return styleDim.Render("filter: ") + helperpkg.Truncate(query, width-8)
 }

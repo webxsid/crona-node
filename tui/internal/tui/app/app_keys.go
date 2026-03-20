@@ -196,8 +196,13 @@ func (m Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		}
 	case "c":
 		if m.view == ViewConfig && m.pane == PaneConfig {
-			if item, ok := m.selectedConfigItem(); ok && item.label == "Reports directory" && m.exportAssets != nil {
-				return m.openExportReportsDirDialog(m.exportAssets.ReportsDir), nil
+			if item, ok := m.selectedConfigItem(); ok && m.exportAssets != nil {
+				switch item.label {
+				case "Reports directory":
+					return m.openExportReportsDirDialog(m.exportAssets.ReportsDir), nil
+				case "ICS export directory":
+					return m.openExportICSDirDialog(m.exportAssets.ICSDir), nil
+				}
 			}
 			return m, nil
 		}
@@ -402,6 +407,9 @@ func (m Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 				if item.label == "Reports directory" && m.exportAssets.ReportsDirCustomized {
 					return m, cmdSetExportReportsDir(m.client, "")
 				}
+				if item.label == "ICS export directory" && m.exportAssets.ICSDirCustomized {
+					return m, cmdSetExportICSDir(m.client, "")
+				}
 				if item.resettable {
 					return m, cmdResetExportTemplate(m.client, item.reportKind, item.assetKind)
 				}
@@ -458,10 +466,14 @@ func (m Model) adjustSelectedSetting(dir int) (tea.Model, tea.Cmd) {
 	case 8:
 		return m, cmdPatchSetting(m.client, sharedtypes.CoreSettingsKeyAutoStartWork, !m.settings.AutoStartWork, repoID, streamID, m.dashboardDate)
 	case 9:
-		return m, cmdPatchSetting(m.client, sharedtypes.CoreSettingsKeyRepoSort, nextRepoSort(m.settings.RepoSort, dir), repoID, streamID, m.dashboardDate)
+		return m, cmdPatchSetting(m.client, sharedtypes.CoreSettingsKeyBoundaryNotifications, !m.settings.BoundaryNotifications, repoID, streamID, m.dashboardDate)
 	case 10:
-		return m, cmdPatchSetting(m.client, sharedtypes.CoreSettingsKeyStreamSort, nextStreamSort(m.settings.StreamSort, dir), repoID, streamID, m.dashboardDate)
+		return m, cmdPatchSetting(m.client, sharedtypes.CoreSettingsKeyBoundarySound, !m.settings.BoundarySound, repoID, streamID, m.dashboardDate)
 	case 11:
+		return m, cmdPatchSetting(m.client, sharedtypes.CoreSettingsKeyRepoSort, nextRepoSort(m.settings.RepoSort, dir), repoID, streamID, m.dashboardDate)
+	case 12:
+		return m, cmdPatchSetting(m.client, sharedtypes.CoreSettingsKeyStreamSort, nextStreamSort(m.settings.StreamSort, dir), repoID, streamID, m.dashboardDate)
+	case 13:
 		return m, cmdPatchSetting(m.client, sharedtypes.CoreSettingsKeyIssueSort, nextIssueSort(m.settings.IssueSort, dir), repoID, streamID, m.dashboardDate)
 	default:
 		return m, nil

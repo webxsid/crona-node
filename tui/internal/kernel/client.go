@@ -3,6 +3,7 @@ package kernel
 import (
 	"bufio"
 	"bytes"
+	"crona/shared/config"
 	"crona/shared/protocol"
 	sharedtypes "crona/shared/types"
 	"encoding/json"
@@ -28,8 +29,11 @@ type Info struct {
 }
 
 func Ensure() (*Info, error) {
-	home, _ := os.UserHomeDir()
-	infoPath := filepath.Join(home, ".crona", "kernel.json")
+	base, err := config.RuntimeBaseDir()
+	if err != nil {
+		return nil, err
+	}
+	infoPath := filepath.Join(base, "kernel.json")
 
 	if info, err := readInfo(infoPath); err == nil {
 		if isHealthy(info) {
@@ -160,23 +164,31 @@ func kernelLaunchCandidates() []launchCandidate {
 	}
 
 	if exe, err := os.Executable(); err == nil {
-		sibling := filepath.Join(filepath.Dir(exe), "crona-kernel")
+		kernelName := config.KernelBinaryName()
+		sibling := filepath.Join(filepath.Dir(exe), kernelName)
 		if info, err := os.Stat(sibling); err == nil && !info.IsDir() {
 			add(launchCandidate{
-				name: "sibling crona-kernel",
+				name: "sibling " + kernelName,
 				cmd:  sibling,
 			})
 		}
 	}
 
-	if pathCmd, err := exec.LookPath("crona-kernel"); err == nil {
+	if pathCmd, err := exec.LookPath(config.KernelBinaryName()); err == nil {
 		add(launchCandidate{
-			name: "PATH crona-kernel",
+			name: "PATH " + config.KernelBinaryName(),
 			cmd:  pathCmd,
 		})
 	}
 
 	if repoRoot, err := findRepoRoot(); err == nil {
+		repoBin := filepath.Join(repoRoot, "bin", config.KernelBinaryName())
+		if info, err := os.Stat(repoBin); err == nil && !info.IsDir() {
+			add(launchCandidate{
+				name: "repo bin " + config.KernelBinaryName(),
+				cmd:  repoBin,
+			})
+		}
 		if _, err := os.Stat(filepath.Join(repoRoot, "kernel", "cmd", "crona-kernel")); err == nil {
 			if goCmd, lookErr := exec.LookPath("go"); lookErr == nil {
 				add(launchCandidate{

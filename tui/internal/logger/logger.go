@@ -5,13 +5,19 @@ import (
 	"os"
 	"path/filepath"
 	"time"
+
+	"crona/shared/config"
 )
 
 var logBase string
 
 func init() {
-	home, _ := os.UserHomeDir()
-	logBase = filepath.Join(home, ".crona", "logs", "tui")
+	base, err := config.RuntimeBaseDir()
+	if err != nil {
+		home, _ := os.UserHomeDir()
+		base = filepath.Join(home, config.RuntimeBaseDirName())
+	}
+	logBase = filepath.Join(base, "logs", "tui")
 }
 
 func logDir() string {

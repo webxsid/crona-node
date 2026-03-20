@@ -2,7 +2,7 @@
 
 **Crona** is a local-first, developer-centric work tracking system that blends ideas from Git, Pomodoro timers, and task managers into a single, opinionated workflow.
 
-This repository is a Go monorepo containing the Crona kernel, shared contracts, terminal UI, and future CLI.
+This repository is a Go monorepo containing the Crona kernel, shared contracts, terminal UI, and CLI.
 
 ## Public Beta Install
 
@@ -39,7 +39,7 @@ If you want to build from source instead of using the release installer, clone t
 make build
 ```
 
-To install the kernel into your Go bin directory:
+To build the kernel binary into the repo `bin/` directory:
 
 ```bash
 make install-kernel
@@ -51,11 +51,18 @@ To build the TUI binary locally into the repo `bin/` directory:
 make install-tui
 ```
 
+To build the CLI binary locally into the repo `bin/` directory:
+
+```bash
+make install-cli
+```
+
 If you prefer fully manual Go commands instead of the `Makefile` targets:
 
 ```bash
-cd kernel && go install ./cmd/crona-kernel
+cd kernel && go build -o ../bin/crona-kernel ./cmd/crona-kernel
 cd tui && go build -o ../bin/crona-tui .
+cd cli && go build -o ../bin/crona ./cmd/crona
 ```
 
 Make sure both `crona-kernel` and `crona-tui` are on your `PATH` before launching:
@@ -71,7 +78,7 @@ crona/
 ├─ Makefile  # Project metadata and common tasks
 ├─ kernel/   # Local daemon: storage, commands, timer, IPC
 ├─ tui/      # Terminal UI (Bubble Tea)
-├─ cli/      # Future CLI
+├─ cli/      # Scriptable CLI and local automation entrypoints
 ├─ shared/   # DTOs, types, protocol envelopes
 ├─ go.work
 └─ README.md
@@ -211,6 +218,13 @@ make seed-dev
 make clear-dev
 ```
 
+When `CRONA_ENV=Dev`, local binary targets use `-dev` suffixes:
+
+```bash
+CRONA_ENV=Dev make install-kernel install-tui install-cli
+# -> bin/crona-kernel-dev, bin/crona-tui-dev, bin/crona-dev
+```
+
 Install the linter once with:
 
 ```bash
@@ -233,6 +247,47 @@ The TUI will auto-start the kernel if `crona-kernel` is on your `PATH`.
 When `CRONA_ENV=Dev`, the TUI exposes global hotkeys for developer data management:
 - `f6` seeds sample data
 - `f7` clears all local data
+
+### CLI
+
+The `crona` CLI exposes local automation-friendly commands for kernel, context, timer, and calendar export flows.
+
+Examples:
+
+```bash
+crona kernel attach
+crona context get --json
+crona timer status --json
+crona export calendar --start 2026-03-17 --end 2026-03-23
+```
+
+Shell completions can be generated with:
+
+```bash
+crona completion zsh
+crona completion bash
+crona completion fish
+```
+
+### Notifications
+
+Structured timer boundaries can trigger local OS notifications and optional audible cues.
+
+- macOS: `osascript`
+- Linux: `notify-send`, with `canberra-gtk-play` used for sound when available
+- Windows: PowerShell fallback
+
+If the local notification tooling is unavailable, Crona continues running and skips the notification instead of failing the timer flow.
+
+### Calendar Automation
+
+Crona can generate local `.ics` calendar exports for automation workflows.
+
+The intended Phase 4 workflow is:
+
+- Crona writes deterministic `.ics` files into a dedicated ICS export directory
+- local tools such as Shortcuts, Folder Actions, or import/watch-folder automations react to those files
+- Crona itself does not need direct Google or iCloud API access
 
 ### Run Tests
 

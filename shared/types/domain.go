@@ -131,6 +131,8 @@ const (
 	CoreSettingsKeyCyclesBeforeLongBreak CoreSettingsKey = "cyclesBeforeLongBreak"
 	CoreSettingsKeyAutoStartBreaks       CoreSettingsKey = "autoStartBreaks"
 	CoreSettingsKeyAutoStartWork         CoreSettingsKey = "autoStartWork"
+	CoreSettingsKeyBoundaryNotifications CoreSettingsKey = "boundaryNotificationsEnabled"
+	CoreSettingsKeyBoundarySound         CoreSettingsKey = "boundarySoundEnabled"
 	CoreSettingsKeyRepoSort              CoreSettingsKey = "repoSort"
 	CoreSettingsKeyStreamSort            CoreSettingsKey = "streamSort"
 	CoreSettingsKeyIssueSort             CoreSettingsKey = "issueSort"
@@ -398,6 +400,8 @@ type CoreSettings struct {
 	CyclesBeforeLongBreak int        `json:"cyclesBeforeLongBreak"`
 	AutoStartBreaks       bool       `json:"autoStartBreaks"`
 	AutoStartWork         bool       `json:"autoStartWork"`
+	BoundaryNotifications bool       `json:"boundaryNotificationsEnabled"`
+	BoundarySound         bool       `json:"boundarySoundEnabled"`
 	RepoSort              RepoSort   `json:"repoSort"`
 	StreamSort            StreamSort `json:"streamSort"`
 	IssueSort             IssueSort  `json:"issueSort"`
@@ -484,6 +488,7 @@ const (
 	ExportFormatMarkdown ExportFormat = "markdown"
 	ExportFormatPDF      ExportFormat = "pdf"
 	ExportFormatCSV      ExportFormat = "csv"
+	ExportFormatICS      ExportFormat = "ics"
 )
 
 type ExportReportKind string
@@ -495,6 +500,7 @@ const (
 	ExportReportKindStream      ExportReportKind = "stream"
 	ExportReportKindIssueRollup ExportReportKind = "issue_rollup"
 	ExportReportKindCSV         ExportReportKind = "csv"
+	ExportReportKindCalendar    ExportReportKind = "calendar"
 )
 
 type ExportAssetKind string
@@ -568,6 +574,9 @@ type ExportAssetStatus struct {
 	ReportsDir             string                `json:"reportsDir"`
 	DefaultReportsDir      string                `json:"defaultReportsDir"`
 	ReportsDirCustomized   bool                  `json:"reportsDirCustomized"`
+	ICSDir                 string                `json:"icsDir"`
+	DefaultICSDir          string                `json:"defaultIcsDir"`
+	ICSDirCustomized       bool                  `json:"icsDirCustomized"`
 	UserTemplateExists     bool                  `json:"userTemplateExists"`
 	UserTemplateCustomized bool                  `json:"userTemplateCustomized"`
 	DefaultUpdateAvailable bool                  `json:"defaultUpdateAvailable"`
@@ -622,3 +631,15 @@ type ExportReportResult struct {
 }
 
 type DailyReportResult = ExportReportResult
+
+type CalendarExportResult struct {
+	Kind             ExportReportKind   `json:"kind"`
+	Label            string             `json:"label"`
+	Scope            *ExportReportScope `json:"scope,omitempty"`
+	OutputMode       ExportOutputMode   `json:"outputMode"`
+	RepoID           int64              `json:"repoId"`
+	RepoName         string             `json:"repoName"`
+	IssuesFilePath   string             `json:"issuesFilePath"`
+	SessionsFilePath string             `json:"sessionsFilePath"`
+	Assets           ExportAssetStatus  `json:"assets"`
+}

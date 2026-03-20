@@ -1,4 +1,4 @@
-package app
+package commands
 
 import (
 	"time"
@@ -9,308 +9,312 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 )
 
-func loadRepos(c *api.Client) tea.Cmd {
+func LoadRepos(c *api.Client) tea.Cmd {
 	return func() tea.Msg {
 		repos, err := c.ListRepos()
 		if err != nil {
 			logger.Errorf("loadRepos: %v", err)
-			return errMsg{err}
+			return ErrMsg{Err: err}
 		}
-		return reposLoadedMsg{repos}
+		return ReposLoadedMsg{Repos: repos}
 	}
 }
 
-func loadStreams(c *api.Client, repoID int64) tea.Cmd {
+func LoadStreams(c *api.Client, repoID int64) tea.Cmd {
 	return func() tea.Msg {
 		streams, err := c.ListStreams(repoID)
 		if err != nil {
 			logger.Errorf("loadStreams(%d): %v", repoID, err)
-			return errMsg{err}
+			return ErrMsg{Err: err}
 		}
-		return streamsLoadedMsg{streams}
+		return StreamsLoadedMsg{Streams: streams}
 	}
 }
 
-func loadIssues(c *api.Client, streamID int64) tea.Cmd {
+func LoadIssues(c *api.Client, streamID int64) tea.Cmd {
 	return func() tea.Msg {
 		issues, err := c.ListIssues(streamID)
 		if err != nil {
 			logger.Errorf("loadIssues(%d): %v", streamID, err)
-			return errMsg{err}
+			return ErrMsg{Err: err}
 		}
-		return issuesLoadedMsg{streamID: streamID, issues: issues}
+		return IssuesLoadedMsg{StreamID: streamID, Issues: issues}
 	}
 }
 
-func loadHabits(c *api.Client, streamID int64) tea.Cmd {
+func LoadHabits(c *api.Client, streamID int64) tea.Cmd {
 	return func() tea.Msg {
 		habits, err := c.ListHabits(streamID)
 		if err != nil {
 			logger.Errorf("loadHabits(%d): %v", streamID, err)
-			return errMsg{err}
+			return ErrMsg{Err: err}
 		}
-		return habitsLoadedMsg{streamID: streamID, habits: habits}
+		return HabitsLoadedMsg{StreamID: streamID, Habits: habits}
 	}
 }
 
-func loadAllIssues(c *api.Client) tea.Cmd {
+func LoadAllIssues(c *api.Client) tea.Cmd {
 	return func() tea.Msg {
 		issues, err := c.ListAllIssues()
 		if err != nil {
 			logger.Errorf("loadAllIssues: %v", err)
-			return errMsg{err}
+			return ErrMsg{Err: err}
 		}
-		return allIssuesLoadedMsg{issues}
+		return AllIssuesLoadedMsg{Issues: issues}
 	}
 }
 
-func loadDueHabits(c *api.Client, date string) tea.Cmd {
+func LoadDueHabits(c *api.Client, date string) tea.Cmd {
 	return func() tea.Msg {
 		habits, err := c.ListDueHabits(date)
 		if err != nil {
 			logger.Errorf("loadDueHabits: %v", err)
-			return errMsg{err}
+			return ErrMsg{Err: err}
 		}
-		return dueHabitsLoadedMsg{habits: habits}
+		return DueHabitsLoadedMsg{Habits: habits}
 	}
 }
 
-func loadDailySummary(c *api.Client, date string) tea.Cmd {
+func LoadDailySummary(c *api.Client, date string) tea.Cmd {
 	return func() tea.Msg {
 		summary, err := c.GetDailySummary(date)
 		if err != nil {
 			logger.Errorf("loadDailySummary: %v", err)
-			return errMsg{err}
+			return ErrMsg{Err: err}
 		}
-		return dailySummaryLoadedMsg{summary}
+		return DailySummaryLoadedMsg{Summary: summary}
 	}
 }
 
-func loadDailyCheckIn(c *api.Client, date string) tea.Cmd {
+func LoadDailyCheckIn(c *api.Client, date string) tea.Cmd {
 	return func() tea.Msg {
 		checkIn, err := c.GetDailyCheckIn(date)
 		if err != nil {
 			logger.Errorf("loadDailyCheckIn: %v", err)
-			return errMsg{err}
+			return ErrMsg{Err: err}
 		}
-		return dailyCheckInLoadedMsg{checkIn}
+		return DailyCheckInLoadedMsg{CheckIn: checkIn}
 	}
 }
 
-func loadMetricsRange(c *api.Client, start, end string) tea.Cmd {
+func LoadMetricsRange(c *api.Client, start, end string) tea.Cmd {
 	return func() tea.Msg {
 		days, err := c.GetMetricsRange(start, end)
 		if err != nil {
 			logger.Errorf("loadMetricsRange: %v", err)
-			return errMsg{err}
+			return ErrMsg{Err: err}
 		}
-		return metricsRangeLoadedMsg{days}
+		return MetricsRangeLoadedMsg{Days: days}
 	}
 }
 
-func loadMetricsRollup(c *api.Client, start, end string) tea.Cmd {
+func LoadMetricsRollup(c *api.Client, start, end string) tea.Cmd {
 	return func() tea.Msg {
 		rollup, err := c.GetMetricsRollup(start, end)
 		if err != nil {
 			logger.Errorf("loadMetricsRollup: %v", err)
-			return errMsg{err}
+			return ErrMsg{Err: err}
 		}
-		return metricsRollupLoadedMsg{rollup}
+		return MetricsRollupLoadedMsg{Rollup: rollup}
 	}
 }
 
-func loadMetricsStreaks(c *api.Client, start, end string) tea.Cmd {
+func LoadMetricsStreaks(c *api.Client, start, end string) tea.Cmd {
 	return func() tea.Msg {
 		streaks, err := c.GetMetricsStreaks(start, end)
 		if err != nil {
 			logger.Errorf("loadMetricsStreaks: %v", err)
-			return errMsg{err}
+			return ErrMsg{Err: err}
 		}
-		return streaksLoadedMsg{streaks}
+		return StreaksLoadedMsg{Streaks: streaks}
 	}
 }
 
-func loadIssueSessions(c *api.Client, issueID int64) tea.Cmd {
+func LoadIssueSessions(c *api.Client, issueID int64) tea.Cmd {
 	return func() tea.Msg {
 		sessions, err := c.ListSessionsByIssue(issueID)
 		if err != nil {
 			logger.Errorf("loadIssueSessions(%d): %v", issueID, err)
-			return errMsg{err}
+			return ErrMsg{Err: err}
 		}
-		return issueSessionsLoadedMsg{issueID: issueID, sessions: sessions}
+		return IssueSessionsLoadedMsg{IssueID: issueID, Sessions: sessions}
 	}
 }
 
-func loadSessionHistory(c *api.Client, issueID *int64, limit int) tea.Cmd {
+func LoadSessionHistory(c *api.Client, issueID *int64, limit int) tea.Cmd {
 	return func() tea.Msg {
 		sessions, err := c.ListSessionHistory(issueID, limit)
 		if err != nil {
 			logger.Errorf("loadSessionHistory: %v", err)
-			return errMsg{err}
+			return ErrMsg{Err: err}
 		}
-		return sessionHistoryLoadedMsg{sessions}
+		return SessionHistoryLoadedMsg{Sessions: sessions}
 	}
 }
 
-func loadSessionHistoryForModel(m Model, limit int) tea.Cmd {
-	return loadSessionHistory(m.client, m.sessionHistoryScopeIssueID(), limit)
-}
-
-func loadSessionDetail(c *api.Client, id string) tea.Cmd {
+func LoadSessionDetail(c *api.Client, id string) tea.Cmd {
 	return func() tea.Msg {
 		detail, err := c.GetSessionDetail(id)
 		if err != nil {
 			logger.Errorf("loadSessionDetail(%s): %v", id, err)
-			return sessionDetailFailedMsg{err: err}
+			return SessionDetailFailedMsg{Err: err}
 		}
-		return sessionDetailLoadedMsg{detail: detail}
+		return SessionDetailLoadedMsg{Detail: detail}
 	}
 }
 
-func loadScratchpads(c *api.Client) tea.Cmd {
+func LoadScratchpads(c *api.Client) tea.Cmd {
 	return func() tea.Msg {
 		pads, err := c.ListScratchpads()
 		if err != nil {
 			logger.Errorf("loadScratchpads: %v", err)
-			return errMsg{err}
+			return ErrMsg{Err: err}
 		}
-		return scratchpadsLoadedMsg{pads}
+		return ScratchpadsLoadedMsg{Pads: pads}
 	}
 }
 
-func loadStashes(c *api.Client) tea.Cmd {
+func LoadStashes(c *api.Client) tea.Cmd {
 	return func() tea.Msg {
 		stashes, err := c.ListStashes()
 		if err != nil {
 			logger.Errorf("loadStashes: %v", err)
-			return errMsg{err}
+			return ErrMsg{Err: err}
 		}
-		return stashesLoadedMsg{stashes}
+		return StashesLoadedMsg{Stashes: stashes}
 	}
 }
 
-func loadOps(c *api.Client, limit int) tea.Cmd {
+func LoadOps(c *api.Client, limit int) tea.Cmd {
 	return func() tea.Msg {
 		ops, err := c.ListOps(limit)
 		if err != nil {
 			logger.Errorf("loadOps: %v", err)
-			return errMsg{err}
+			return ErrMsg{Err: err}
 		}
-		return opsLoadedMsg{ops}
+		return OpsLoadedMsg{Ops: ops}
 	}
 }
 
-func loadContext(c *api.Client) tea.Cmd {
+func LoadContext(c *api.Client) tea.Cmd {
 	return func() tea.Msg {
 		ctx, err := c.GetContext()
 		if err != nil {
 			logger.Errorf("loadContext: %v", err)
-			return errMsg{err}
+			return ErrMsg{Err: err}
 		}
-		return contextLoadedMsg{ctx}
+		return ContextLoadedMsg{Ctx: ctx}
 	}
 }
 
-func loadTimer(c *api.Client) tea.Cmd {
+func LoadTimer(c *api.Client) tea.Cmd {
 	return func() tea.Msg {
 		t, err := c.GetTimerState()
 		if err != nil {
 			logger.Errorf("loadTimer: %v", err)
-			return errMsg{err}
+			return ErrMsg{Err: err}
 		}
-		return timerLoadedMsg{t}
+		return TimerLoadedMsg{Timer: t}
 	}
 }
 
-func loadHealth(c *api.Client) tea.Cmd {
+func LoadHealth(c *api.Client) tea.Cmd {
 	return func() tea.Msg {
 		h, err := c.GetHealth()
 		if err != nil {
 			logger.Errorf("loadHealth: %v", err)
-			return errMsg{err}
+			return ErrMsg{Err: err}
 		}
-		return healthLoadedMsg{h}
+		return HealthLoadedMsg{Health: h}
 	}
 }
 
-func loadSettings(c *api.Client) tea.Cmd {
+func LoadSettings(c *api.Client) tea.Cmd {
 	return func() tea.Msg {
 		settings, err := c.GetSettings()
 		if err != nil {
 			logger.Errorf("loadSettings: %v", err)
-			return errMsg{err}
+			return ErrMsg{Err: err}
 		}
-		return settingsLoadedMsg{settings}
+		return SettingsLoadedMsg{Settings: settings}
 	}
 }
 
-func loadKernelInfo(c *api.Client) tea.Cmd {
+func LoadKernelInfo(c *api.Client) tea.Cmd {
 	return func() tea.Msg {
 		info, err := c.GetKernelInfo()
 		if err != nil {
 			logger.Errorf("loadKernelInfo: %v", err)
-			return errMsg{err}
+			return ErrMsg{Err: err}
 		}
-		return kernelInfoLoadedMsg{info}
+		return KernelInfoLoadedMsg{Info: info}
 	}
 }
 
-func loadExportAssets(c *api.Client) tea.Cmd {
+func LoadExportAssets(c *api.Client) tea.Cmd {
 	return func() tea.Msg {
 		assets, err := c.GetExportAssets()
 		if err != nil {
 			logger.Errorf("loadExportAssets: %v", err)
-			return errMsg{err}
+			return ErrMsg{Err: err}
 		}
-		return exportAssetsLoadedMsg{assets: assets}
+		return ExportAssetsLoadedMsg{Assets: assets}
 	}
 }
 
-func loadExportReports(c *api.Client) tea.Cmd {
+func LoadExportReports(c *api.Client) tea.Cmd {
 	return func() tea.Msg {
 		reports, err := c.ListExportReports()
 		if err != nil {
 			logger.Errorf("loadExportReports: %v", err)
-			return errMsg{err}
+			return ErrMsg{Err: err}
 		}
-		return exportReportsLoadedMsg{reports: reports}
+		return ExportReportsLoadedMsg{Reports: reports}
 	}
 }
 
-func tickAfter(seq int) tea.Cmd {
+func TickAfter(seq int) tea.Cmd {
 	return tea.Tick(time.Second, func(_ time.Time) tea.Msg {
-		return timerTickMsg{seq: seq}
+		return TimerTickMsg{Seq: seq}
 	})
 }
 
-func healthTickAfter() tea.Cmd {
+func HealthTickAfter() tea.Cmd {
 	return tea.Tick(5*time.Second, func(_ time.Time) tea.Msg {
-		return healthTickMsg{}
+		return HealthTickMsg{}
 	})
 }
 
-func clearStatusAfter(seq int, d time.Duration) tea.Cmd {
+func ClearStatusAfter(seq int, d time.Duration) tea.Cmd {
 	return tea.Tick(d, func(_ time.Time) tea.Msg {
-		return clearStatusMsg{seq: seq}
+		return ClearStatusMsg{Seq: seq}
 	})
 }
 
-func waitForEvent(ch <-chan api.KernelEvent) tea.Cmd {
+func WaitForEvent(ch <-chan api.KernelEvent) tea.Cmd {
 	return func() tea.Msg {
 		event, ok := <-ch
 		if !ok {
 			return nil
 		}
-		return kernelEventMsg{event}
+		return KernelEventMsg{Event: event}
 	}
 }
 
-func loadWellbeing(c *api.Client, date string) tea.Cmd {
+func LoadWellbeing(c *api.Client, date string) tea.Cmd {
 	start := shiftISODate(date, -6)
 	return tea.Batch(
-		loadDailyCheckIn(c, date),
-		loadMetricsRange(c, start, date),
-		loadMetricsRollup(c, start, date),
-		loadMetricsStreaks(c, start, date),
+		LoadDailyCheckIn(c, date),
+		LoadMetricsRange(c, start, date),
+		LoadMetricsRollup(c, start, date),
+		LoadMetricsStreaks(c, start, date),
 	)
+}
+
+func shiftISODate(date string, days int) string {
+	t, err := time.Parse("2006-01-02", date)
+	if err != nil {
+		return date
+	}
+	return t.AddDate(0, 0, days).Format("2006-01-02")
 }

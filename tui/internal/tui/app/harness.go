@@ -6,9 +6,7 @@ import (
 	"github.com/charmbracelet/lipgloss"
 )
 
-// NewDailyTestModel returns a model seeded with enough daily-view state for
-// isolated rendering tests outside this package.
-func NewDailyTestModel(width, height int) Model {
+func NewDailyRenderModel(width, height int) Model {
 	repoName := "Work"
 	streamName := "app"
 	estimate := 60
@@ -53,23 +51,15 @@ func NewDailyTestModel(width, height int) Model {
 	}
 }
 
-func (m Model) RenderForTesting() string {
-	return m.View()
-}
+func (m Model) RenderString() string { return m.View() }
+func (m Model) BodyHeight() int      { return lipgloss.Height(m.renderBody()) }
+func (m Model) ContentHeight() int   { return m.contentHeight() }
 
-func (m Model) BodyHeightForTesting() int {
-	return lipgloss.Height(m.renderBody())
-}
-
-func (m Model) ContentHeightForTesting() int {
-	return m.contentHeight()
-}
-
-func MinimumSizeForTesting() (int, int) {
+func MinimumSize() (int, int) {
 	return minTUIWidth, minTUIHeight
 }
 
-func NewDailyHabitDeleteTestModel(habits []api.HabitDailyItem) Model {
+func NewDailyHabitDeleteModel(habits []api.HabitDailyItem) Model {
 	return Model{
 		view:      ViewDaily,
 		pane:      PaneHabits,
@@ -80,18 +70,10 @@ func NewDailyHabitDeleteTestModel(habits []api.HabitDailyItem) Model {
 	}
 }
 
-func OpenSelectedDeleteDialogForTesting(m Model) (Model, bool) {
+func OpenSelectedDeleteDialog(m Model) (Model, bool) {
 	return m.openSelectedDeleteDialog()
 }
 
-func (m Model) DialogDeleteKindForTesting() string {
-	return m.dialogDeleteKind
-}
-
-func (m Model) DialogDeleteIDForTesting() string {
-	return m.dialogDeleteID
-}
-
-func (m Model) DialogStreamIDForTesting() int64 {
-	return m.dialogStreamID
-}
+func (m Model) DialogDeleteKind() string { return m.dialogDeleteKind }
+func (m Model) DialogDeleteID() string   { return m.dialogDeleteID }
+func (m Model) DialogStreamID() int64    { return m.dialogStreamID }

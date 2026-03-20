@@ -77,7 +77,7 @@ func OpenCreateScratchpad(state State) State {
 	return state
 }
 
-func OpenExportDaily(state State, date string, includePDF bool) State {
+func OpenExportDaily(state State, date string, includePDF bool, repos []api.Repo, checkedRepoID *int64) State {
 	state = Close(state)
 	state.Kind = "export_report"
 	state.CheckInDate = date
@@ -89,6 +89,7 @@ func OpenExportDaily(state State, date string, includePDF bool) State {
 		"Stream report: write Markdown file",
 		"Issue rollup: write Markdown file",
 		"CSV session export: write file",
+		"Calendar export: write ICS file",
 	}
 	if includePDF {
 		state.ChoiceItems = append([]string{
@@ -96,7 +97,36 @@ func OpenExportDaily(state State, date string, includePDF bool) State {
 			"Weekly summary: write PDF file",
 		}, state.ChoiceItems...)
 	}
+	state.RepoItems = make([]string, 0, len(repos))
+	state.RepoItemIDs = make([]int64, 0, len(repos))
+	selectedRepoIdx := 0
+	for i, repo := range repos {
+		state.RepoItems = append(state.RepoItems, repo.Name)
+		state.RepoItemIDs = append(state.RepoItemIDs, repo.ID)
+		if checkedRepoID != nil && repo.ID == *checkedRepoID {
+			selectedRepoIdx = i
+		}
+	}
+	if len(state.RepoItems) > 0 {
+		state.RepoIndex = selectedRepoIdx
+		state.RepoID = state.RepoItemIDs[selectedRepoIdx]
+		state.RepoName = state.RepoItems[selectedRepoIdx]
+	}
 	state.ChoiceCursor = 0
+	return state
+}
+
+func OpenExportCalendarRepo(state State) State {
+	if len(state.RepoItems) == 0 {
+		return state
+	}
+	state.Kind = "export_calendar_repo"
+	state.Parent = "export_report"
+	state.ChoiceItems = append([]string(nil), state.RepoItems...)
+	if state.RepoIndex < 0 || state.RepoIndex >= len(state.ChoiceItems) {
+		state.RepoIndex = 0
+	}
+	state.ChoiceCursor = state.RepoIndex
 	return state
 }
 
@@ -109,6 +139,19 @@ func OpenExportReportsDir(state State, current string) State {
 	input.Width = 56
 	state = Close(state)
 	state.Kind = "edit_export_reports_dir"
+	state.Inputs = []textinput.Model{input}
+	return state
+}
+
+func OpenExportICSDir(state State, current string) State {
+	input := textinput.New()
+	input.Placeholder = "ICS export directory"
+	input.SetValue(strings.TrimSpace(current))
+	input.Focus()
+	input.CharLimit = 240
+	input.Width = 56
+	state = Close(state)
+	state.Kind = "edit_export_ics_dir"
 	state.Inputs = []textinput.Model{input}
 	return state
 }
@@ -597,6 +640,8 @@ func Close(state State) State {
 	state.IssueStatus = ""
 	state.RepoID = 0
 	state.RepoName = ""
+	state.RepoItems = nil
+	state.RepoItemIDs = nil
 	state.StreamID = 0
 	state.StreamName = ""
 	state.RepoIndex = 0
@@ -607,6 +652,10 @@ func Close(state State) State {
 	state.StashCursor = 0
 	state.StatusItems = nil
 	state.StatusCursor = 0
+	state.ChoiceItems = nil
+	state.ChoiceCursor = 0
+	state.Processing = false
+	state.ProcessingLabel = ""
 	state.StatusLabel = ""
 	state.StatusRequired = false
 	state.CheckInDate = ""
@@ -734,9 +783,15 @@ func Update(state State, ctx UpdateContext, currentDate string, msg tea.KeyMsg) 
 		return updateCheckIn(state, msg)
 	case "export_report":
 		return updateExportDaily(state, msg)
+	case "export_calendar_repo":
+		return updateExportCalendarRepo(state, msg)
 	case "edit_export_reports_dir":
 		return updateSingleInput(state, msg, "Reports directory is required", func(value string) *Action {
 			return &Action{Kind: "set_export_reports_dir", Path: value}
+		})
+	case "edit_export_ics_dir":
+		return updateSingleInput(state, msg, "ICS export directory is required", func(value string) *Action {
+			return &Action{Kind: "set_export_ics_dir", Path: value}
 		})
 	case "view_entity":
 		return updateViewEntity(state, msg)
@@ -1378,6 +1433,11 @@ func updateExportDaily(state State, msg tea.KeyMsg) (State, *Action, string) {
 			action.ReportFormat = sharedtypes.ExportFormatMarkdown
 			action.OutputMode = sharedtypes.ExportOutputModeFile
 			state.ProcessingLabel = "Generating issue rollup..."
+		case "Calendar export: write ICS file":
+			if len(state.RepoItems) == 0 {
+				return state, nil, "Calendar export requires at least one repo"
+			}
+			return OpenExportCalendarRepo(state), nil, ""
 		default:
 			action.ReportKind = sharedtypes.ExportReportKindCSV
 			action.ReportFormat = sharedtypes.ExportFormatCSV
@@ -1386,6 +1446,56 @@ func updateExportDaily(state State, msg tea.KeyMsg) (State, *Action, string) {
 		}
 		state.Processing = true
 		return state, &action, ""
+	}
+	return state, nil, ""
+}
+
+func updateExportCalendarRepo(state State, msg tea.KeyMsg) (State, *Action, string) {
+	switch msg.String() {
+	case "esc", "q":
+		state.Kind = "export_report"
+		state.Parent = ""
+		state.ChoiceItems = []string{
+			"Daily report: write Markdown file",
+			"Daily report: copy to clipboard",
+			"Weekly summary: write Markdown file",
+			"Repo report: write Markdown file",
+			"Stream report: write Markdown file",
+			"Issue rollup: write Markdown file",
+			"CSV session export: write file",
+			"Calendar export: write ICS file",
+		}
+		return state, nil, ""
+	case "j", "down":
+		if state.ChoiceCursor < len(state.ChoiceItems)-1 {
+			state.ChoiceCursor++
+		}
+	case "k", "up":
+		if state.ChoiceCursor > 0 {
+			state.ChoiceCursor--
+		}
+	case "enter":
+		if len(state.RepoItemIDs) == 0 || state.ChoiceCursor < 0 || state.ChoiceCursor >= len(state.RepoItemIDs) {
+			return state, nil, "Calendar export requires a repo"
+		}
+		state.RepoIndex = state.ChoiceCursor
+		state.RepoID = state.RepoItemIDs[state.ChoiceCursor]
+		state.RepoName = state.RepoItems[state.ChoiceCursor]
+		state.Kind = "export_report"
+		state.ChoiceItems = nil
+		state.ChoiceCursor = 0
+		state.Parent = ""
+		state.Processing = true
+		state.ProcessingLabel = "Generating calendar export..."
+		return state, &Action{
+			Kind:         "export_report",
+			ReportKind:   sharedtypes.ExportReportKindCalendar,
+			ReportFormat: sharedtypes.ExportFormatICS,
+			OutputMode:   sharedtypes.ExportOutputModeFile,
+			CheckInDate:  state.CheckInDate,
+			RepoID:       state.RepoID,
+			RepoName:     state.RepoName,
+		}, ""
 	}
 	return state, nil, ""
 }

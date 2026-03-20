@@ -4,6 +4,26 @@ All notable changes to **Crona** are documented here.
 
 ## [Unreleased]
 
+### Added
+- Scriptable `crona` CLI with kernel, context, timer, issue, calendar-export, and dev helper subcommands.
+- Shell completion output for `zsh`, `bash`, and `fish`.
+- Structured timer-boundary OS notifications with optional audible cues.
+- Dedicated configurable ICS export directory for local automation workflows.
+- Repo-scoped calendar export that writes stable `issues.ics` and `sessions.ics` bundles.
+- Dev-mode binary/runtime split with `crona-dev`, `crona-kernel-dev`, `crona-tui-dev`, and `~/.crona-dev`.
+- Dedicated TUI `commands` and `helpers` subpackages plus isolated testsuite support.
+
+### Changed
+- Calendar export no longer inherits the active context/stream scope; it now explicitly targets a repo and defaults from the checked-out repo or repo index `0`.
+- TUI calendar export now uses a repo picker and shows written ICS paths on success.
+- Reports and calendar exports now use separate output directories, with calendar artifacts excluded from the reports browser.
+- The standalone `crona-dev` helper entrypoint was folded into `crona dev ...`.
+- Scratchpad rendering now lives under the `views` package with controller logic kept in the app package.
+
+### Fixed
+- Calendar export now fails clearly when the TUI is talking to a stale kernel that still serves the old response shape.
+- Local dev TUI/kernel launch now resolves repo `bin/` binaries correctly instead of requiring them on the shell `PATH`.
+
 ## [0.2.1] - 2026-03-19
 
 ### Added

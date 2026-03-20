@@ -36,6 +36,9 @@ type ContentState struct {
 	Cursors             map[string]int
 	Filters             map[string]string
 	ScratchpadOpen      bool
+	ScratchpadName      string
+	ScratchpadPath      string
+	ScratchpadRendered  string
 	Elapsed             int
 	DashboardDate       string
 	WellbeingDate       string
@@ -79,7 +82,7 @@ func RenderContent(theme Theme, state ContentState) string {
 	case "session_history", "session_active":
 		return renderSessionView(theme, state)
 	case "scratchpads":
-		return renderScratchpadPlaceholder(theme, state)
+		return renderScratchpadView(theme, state)
 	case "ops":
 		return renderOpsView(theme, state)
 	case "wellbeing":

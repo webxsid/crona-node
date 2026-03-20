@@ -166,6 +166,8 @@ type Model struct {
 	dialogCheckInDate     string
 	dialogRepoID          int64
 	dialogRepoName        string
+	dialogRepoItems       []string
+	dialogRepoItemIDs     []int64
 	dialogStreamID        int64
 	dialogStreamName      string
 	dialogRepoIndex       int

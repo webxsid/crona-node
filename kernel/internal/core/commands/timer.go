@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"strings"
 	"sync"
 	"time"
 
@@ -256,13 +257,63 @@ func (t *TimerService) ScheduleNextBoundary(ctx context.Context) error {
 		} else {
 			_ = PauseSession(context.Background(), t.ctx, boundary.NextSegment)
 		}
-		emit(t.ctx, sharedtypes.EventTypeTimerBoundary, sharedtypes.TimerBoundaryPayload{
-			From: activeSegment.SegmentType,
-			To:   boundary.NextSegment,
-		})
+		emit(t.ctx, sharedtypes.EventTypeTimerBoundary, t.boundaryPayload(activeSegment.SegmentType, boundary.NextSegment))
 		_ = t.ScheduleNextBoundary(context.Background())
 	})
 	return nil
+}
+
+func (t *TimerService) boundaryPayload(from, to sharedtypes.SessionSegmentType) sharedtypes.TimerBoundaryPayload {
+	payload := sharedtypes.TimerBoundaryPayload{
+		From:    from,
+		To:      to,
+		Title:   boundaryTitle(to),
+		Message: boundaryMessage(from, to),
+	}
+	activeContext, err := t.ctx.ActiveContext.Get(context.Background(), t.ctx.UserID, t.ctx.DeviceID)
+	if err != nil || activeContext == nil {
+		return payload
+	}
+	if activeContext.RepoName != nil && strings.TrimSpace(*activeContext.RepoName) != "" {
+		payload.RepoName = activeContext.RepoName
+	}
+	if activeContext.StreamName != nil && strings.TrimSpace(*activeContext.StreamName) != "" {
+		payload.StreamName = activeContext.StreamName
+	}
+	if activeContext.IssueID != nil {
+		payload.IssueID = activeContext.IssueID
+	}
+	if activeContext.IssueTitle != nil && strings.TrimSpace(*activeContext.IssueTitle) != "" {
+		payload.IssueTitle = activeContext.IssueTitle
+		payload.Message = payload.Message + ": " + strings.TrimSpace(*activeContext.IssueTitle)
+	}
+	return payload
+}
+
+func boundaryTitle(segment sharedtypes.SessionSegmentType) string {
+	switch segment {
+	case sharedtypes.SessionSegmentShortBreak:
+		return "Short break started"
+	case sharedtypes.SessionSegmentLongBreak:
+		return "Long break started"
+	case sharedtypes.SessionSegmentWork:
+		return "Focus block started"
+	default:
+		return "Timer boundary reached"
+	}
+}
+
+func boundaryMessage(from, to sharedtypes.SessionSegmentType) string {
+	switch {
+	case from == sharedtypes.SessionSegmentWork && to == sharedtypes.SessionSegmentShortBreak:
+		return "Work block complete. Time for a short break"
+	case from == sharedtypes.SessionSegmentWork && to == sharedtypes.SessionSegmentLongBreak:
+		return "Work cycle complete. Time for a long break"
+	case to == sharedtypes.SessionSegmentWork:
+		return "Break complete. Back to focused work"
+	default:
+		return "Structured timer boundary reached"
+	}
 }
 
 func (t *TimerService) scheduleBoundary(delay time.Duration, callback func()) {

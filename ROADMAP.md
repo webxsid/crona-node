@@ -82,8 +82,32 @@ Make work history reviewable and portable.
 - [x] CSV export is configurable through an editable runtime spec
 - [x] Report templates/specs are editable from the TUI Config view
 
-## Phase 4 — TUI Dashboard System
-Make dashboards a first-class terminal feature. Focus on strong summaries, multiple dashboard views, and practical customization that fits a terminal UI.
+## Phase 4 — Automation, Notifications & Calendar Hooks
+Prioritise machine-friendly flows and local integrations before deeper TUI dashboard expansion.
+
+- [x] `crona` binary with scriptable subcommands
+- [x] JSON output mode (`--json`)
+- [x] Context management from shell (`crona context get|set|clear`, `crona issue start`)
+- [x] Session lifecycle from shell (`crona timer start|pause|resume|end|status`)
+- [x] Calendar export via local `.ics` generation
+- [x] Separate configurable ICS export directory for local automation workflows
+- [x] Stable calendar-export file workflow for Shortcuts, Folder Actions, and local import automations
+- [x] Apple Shortcuts-friendly non-interactive CLI surface
+- [x] Structured timer boundary notifications
+- [x] Audible timer-boundary cues where the local OS supports them
+- [x] Kernel attach/detach commands
+- [x] Shell completions (zsh, bash, fish)
+- [x] Notification settings docs and platform-specific fallback guidance
+- [x] Repo-scoped ICS bundle export (`issues.ics` + `sessions.ics`)
+
+**Phase 4 exit criteria**
+- [x] Structured timer boundaries can notify outside the TUI
+- [x] Calendar exports are generated as local `.ics` files
+- [x] ICS exports can be written to a dedicated configurable directory suitable for local automations
+- [x] Core focus/context/export flows are scriptable through `crona`
+
+## Phase 5 — TUI Dashboard System
+Make dashboards a first-class terminal feature after the automation surface is stable.
 
 ### Built-in Dashboards
 - [ ] Daily Dashboard expansion (weekly rollups, carry-over, missed-vs-done summary)
@@ -105,23 +129,28 @@ Make dashboards a first-class terminal feature. Focus on strong summaries, multi
 - [ ] Keep customization terminal-native: stacked widgets, simple grids, no freeform layout
 - [ ] Avoid one-off dashboard endpoints by building reusable summary APIs
 
-## Phase 5 — CLI
-Non-TUI interface for scripting, shell aliases, and integration with other tools, after the dashboard and metrics model is stable.
+## Phase 6 — macOS Integration
+- [ ] Native macOS menu bar companion
+- [ ] Live timer and checked-out context status from local kernel IPC
+- [ ] Global hotkeys for core timer actions
+- [ ] Launch-at-login support
+- [ ] Local Calendar.app integration via EventKit
+- [ ] Calendar sync into a dedicated local Crona calendar
+- [ ] Optional Shortcuts/Automation entrypoints for Crona sync and timer actions
+- [ ] Native notification bridge and timer-boundary UX polish
 
-- [ ] `crona` binary with subcommands
-- [ ] JSON output mode (`--json`)
-- [ ] Kernel attach/detach commands
-- [ ] Context management from shell (`crona context set`, `crona issue start`)
-- [ ] Session lifecycle from shell (`crona timer start|pause|end`)
-- [ ] Shell completions (zsh, bash, fish)
+**Phase 6 exit criteria**
+- [ ] macOS users can monitor and control active context and timer state without opening the TUI
+- [ ] Local Calendar.app sync works without direct cloud API dependencies
+- [ ] The macOS companion remains a thin client over the Crona kernel
 
-## Phase 6 — Public Beta Release
+## Phase 7 — Public Beta Release
 - [ ] Cross-platform packaging and install docs are ready for external users
 - [ ] Public beta release notes and upgrade path are documented
 - [ ] Feedback / issue intake path is defined for beta users
 - [ ] Core TUI and kernel flows are stable enough for public beta usage
 
-## Phase 7 — Multi-Device Sync
+## Phase 8 — Multi-Device Sync
 See `FEATURE.md` for design proposal.
 
 - [ ] Op log export/import

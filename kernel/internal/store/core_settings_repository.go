@@ -74,6 +74,10 @@ func (r *CoreSettingsRepository) SetSetting(ctx context.Context, userID string, 
 		q = q.Set("auto_start_breaks = ?", value)
 	case sharedtypes.CoreSettingsKeyAutoStartWork:
 		q = q.Set("auto_start_work = ?", value)
+	case sharedtypes.CoreSettingsKeyBoundaryNotifications:
+		q = q.Set("boundary_notifications_enabled = ?", value)
+	case sharedtypes.CoreSettingsKeyBoundarySound:
+		q = q.Set("boundary_sound_enabled = ?", value)
 	case sharedtypes.CoreSettingsKeyRepoSort:
 		q = q.Set("repo_sort = ?", string(sharedtypes.NormalizeRepoSort(sharedtypes.RepoSort(toString(value)))))
 	case sharedtypes.CoreSettingsKeyStreamSort:
@@ -119,6 +123,8 @@ func (r *CoreSettingsRepository) InitializeDefaults(ctx context.Context, userID 
 		CyclesBeforeLongBreak: DefaultCoreSettings["cyclesBeforeLongBreak"].(int),
 		AutoStartBreaks:       DefaultCoreSettings["autoStartBreaks"].(bool),
 		AutoStartWork:         DefaultCoreSettings["autoStartWork"].(bool),
+		BoundaryNotifications: DefaultCoreSettings["boundaryNotificationsEnabled"].(bool),
+		BoundarySound:         DefaultCoreSettings["boundarySoundEnabled"].(bool),
 		RepoSort:              DefaultCoreSettings["repoSort"].(string),
 		StreamSort:            DefaultCoreSettings["streamSort"].(string),
 		IssueSort:             DefaultCoreSettings["issueSort"].(string),
@@ -148,6 +154,10 @@ func coreSettingsValue(row CoreSettingsModel, key sharedtypes.CoreSettingsKey) a
 		return row.AutoStartBreaks
 	case sharedtypes.CoreSettingsKeyAutoStartWork:
 		return row.AutoStartWork
+	case sharedtypes.CoreSettingsKeyBoundaryNotifications:
+		return row.BoundaryNotifications
+	case sharedtypes.CoreSettingsKeyBoundarySound:
+		return row.BoundarySound
 	case sharedtypes.CoreSettingsKeyRepoSort:
 		return sharedtypes.NormalizeRepoSort(sharedtypes.RepoSort(row.RepoSort))
 	case sharedtypes.CoreSettingsKeyStreamSort:
@@ -172,6 +182,8 @@ func coreSettingsFromModel(row CoreSettingsModel) sharedtypes.CoreSettings {
 		CyclesBeforeLongBreak: row.CyclesBeforeLongBreak,
 		AutoStartBreaks:       row.AutoStartBreaks,
 		AutoStartWork:         row.AutoStartWork,
+		BoundaryNotifications: row.BoundaryNotifications,
+		BoundarySound:         row.BoundarySound,
 		RepoSort:              sharedtypes.NormalizeRepoSort(sharedtypes.RepoSort(row.RepoSort)),
 		StreamSort:            sharedtypes.NormalizeStreamSort(sharedtypes.StreamSort(row.StreamSort)),
 		IssueSort:             sharedtypes.NormalizeIssueSort(sharedtypes.IssueSort(row.IssueSort)),

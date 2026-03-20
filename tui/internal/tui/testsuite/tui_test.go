@@ -7,18 +7,19 @@ import (
 
 	sharedtypes "crona/shared/types"
 	"crona/tui/internal/api"
-	"crona/tui/internal/tui/app"
 	dialogs "crona/tui/internal/tui/app/dialogs"
 	"crona/tui/internal/tui/app/views"
+	"crona/tui/internal/tui/testsuite/support"
 
 	"github.com/charmbracelet/bubbles/textinput"
+	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/charmbracelet/x/ansi"
 )
 
 func TestPaneActionLineWrapsInsteadOfDroppingActions(t *testing.T) {
 	rendered := views.RenderPaneActionLine(
-		views.TestingTheme(),
+		support.Theme(),
 		"",
 		20,
 		[]string{"[enter] view", "[a] new", "[c] context"},
@@ -38,7 +39,7 @@ func TestPaneActionLineWrapsInsteadOfDroppingActions(t *testing.T) {
 }
 
 func TestPaneBoxClipsOverflowingContent(t *testing.T) {
-	rendered := views.RenderPaneBoxForTesting(views.TestingTheme(), true, 40, 8, strings.Join([]string{
+	rendered := support.RenderPaneBox(support.Theme(), true, 40, 8, strings.Join([]string{
 		"line1",
 		"line2",
 		"line3",
@@ -69,7 +70,7 @@ func TestDailyViewStacksOnNarrowWidths(t *testing.T) {
 		},
 	}
 
-	rendered := views.RenderDailyForTesting(views.TestingTheme(), state)
+	rendered := support.RenderDaily(state)
 	for _, line := range strings.Split(rendered, "\n") {
 		if got := lipgloss.Width(line); got > state.Width {
 			t.Fatalf("daily view line width %d exceeds content width %d: %q", got, state.Width, line)
@@ -93,7 +94,7 @@ func TestDailyViewDoesNotExceedAllocatedHeight(t *testing.T) {
 		},
 	}
 
-	rendered := views.RenderDailyForTesting(views.TestingTheme(), state)
+	rendered := support.RenderDaily(state)
 	if got := lipgloss.Height(rendered); got > state.Height {
 		t.Fatalf("daily view height %d exceeds allocated height %d", got, state.Height)
 	}
@@ -136,7 +137,7 @@ func TestDailyViewReportedHeightRangeFitsAllocation(t *testing.T) {
 		},
 	}
 
-	rendered := views.RenderDailyForTesting(views.TestingTheme(), state)
+	rendered := support.RenderDaily(state)
 	if got := lipgloss.Height(rendered); got > state.Height {
 		t.Fatalf("daily view height %d exceeds allocated height %d", got, state.Height)
 	}
@@ -144,11 +145,11 @@ func TestDailyViewReportedHeightRangeFitsAllocation(t *testing.T) {
 
 func TestDailyViewDoesNotExceedTerminalHeightInReportedRange(t *testing.T) {
 	for height := 46; height <= 54; height++ {
-		model := app.NewDailyTestModel(92, height)
-		if got, want := model.BodyHeightForTesting(), model.ContentHeightForTesting(); got > want {
+		model := support.NewDailyModel(92, height)
+		if got, want := model.BodyHeight(), model.ContentHeight(); got > want {
 			t.Fatalf("daily body height %d exceeds content height %d at terminal height %d", got, want, height)
 		}
-		rendered := model.RenderForTesting()
+		rendered := model.RenderString()
 		if got := lipgloss.Height(rendered); got > height {
 			t.Fatalf("daily view height %d exceeds terminal height %d", got, height)
 		}
@@ -189,7 +190,7 @@ func TestDailySummaryUsesCompactInlineModeBelowHeight55(t *testing.T) {
 		},
 	}
 
-	rendered := views.RenderDailyForTesting(views.TestingTheme(), state)
+	rendered := support.RenderDaily(state)
 	if !strings.Contains(rendered, "Issues  0/1 resolved") {
 		t.Fatalf("expected compact inline issues row below height 55")
 	}
@@ -208,9 +209,14 @@ func TestDailySummaryUsesCompactInlineModeBelowHeight55(t *testing.T) {
 }
 
 func TestExportDialogListsPhase3ReportChoices(t *testing.T) {
-	state := dialogs.OpenExportDaily(dialogs.State{}, "2026-03-19", true)
+	repos := []api.Repo{{ID: 1, Name: "Work"}, {ID: 2, Name: "OSS"}}
+	checkedRepoID := int64(2)
+	state := dialogs.OpenExportDaily(dialogs.State{}, "2026-03-19", true, repos, &checkedRepoID)
 	if state.Kind != "export_report" {
 		t.Fatalf("expected export_report dialog kind, got %q", state.Kind)
+	}
+	if state.RepoID != checkedRepoID || state.RepoName != "OSS" {
+		t.Fatalf("expected checked-out repo to be selected, got id=%d name=%q", state.RepoID, state.RepoName)
 	}
 	joined := strings.Join(state.ChoiceItems, "\n")
 	for _, want := range []string{
@@ -220,6 +226,7 @@ func TestExportDialogListsPhase3ReportChoices(t *testing.T) {
 		"Stream report: write Markdown file",
 		"Issue rollup: write Markdown file",
 		"CSV session export: write file",
+		"Calendar export: write ICS file",
 	} {
 		if !strings.Contains(joined, want) {
 			t.Fatalf("expected export choice %q in dialog", want)
@@ -227,8 +234,78 @@ func TestExportDialogListsPhase3ReportChoices(t *testing.T) {
 	}
 }
 
+func TestExportDialogDefaultsCalendarRepoToFirstRepoWhenNoContextRepo(t *testing.T) {
+	repos := []api.Repo{{ID: 5, Name: "Work"}, {ID: 9, Name: "Personal"}}
+	state := dialogs.OpenExportDaily(dialogs.State{}, "2026-03-19", false, repos, nil)
+	if state.RepoID != 5 || state.RepoName != "Work" || state.RepoIndex != 0 {
+		t.Fatalf("expected first repo selected by default, got id=%d name=%q index=%d", state.RepoID, state.RepoName, state.RepoIndex)
+	}
+}
+
+func TestExportDialogCalendarChoiceOpensRepoPicker(t *testing.T) {
+	repos := []api.Repo{{ID: 5, Name: "Work"}, {ID: 9, Name: "Personal"}}
+	state := dialogs.OpenExportDaily(dialogs.State{}, "2026-03-19", false, repos, nil)
+	for i, item := range state.ChoiceItems {
+		if item == "Calendar export: write ICS file" {
+			state.ChoiceCursor = i
+			break
+		}
+	}
+	next, action, status := dialogs.Update(state, dialogs.UpdateContext{}, "2026-03-19", tea.KeyMsg{Type: tea.KeyEnter})
+	if status != "" {
+		t.Fatalf("unexpected status: %s", status)
+	}
+	if action != nil {
+		t.Fatalf("expected repo picker step before export action")
+	}
+	if next.Kind != "export_calendar_repo" {
+		t.Fatalf("expected export_calendar_repo dialog, got %q", next.Kind)
+	}
+	if len(next.ChoiceItems) != 2 || next.ChoiceItems[0] != "Work" || next.ChoiceItems[1] != "Personal" {
+		t.Fatalf("unexpected repo picker options: %#v", next.ChoiceItems)
+	}
+}
+
+func TestSettingsViewShowsBoundaryNotificationToggles(t *testing.T) {
+	state := views.ContentState{
+		View:   "settings",
+		Pane:   "settings",
+		Width:  70,
+		Height: 18,
+		Cursors: map[string]int{
+			"settings": 0,
+		},
+		Filters: map[string]string{
+			"settings": "",
+		},
+		Settings: &api.CoreSettings{
+			TimerMode:             sharedtypes.TimerModeStructured,
+			BreaksEnabled:         true,
+			WorkDurationMinutes:   25,
+			ShortBreakMinutes:     5,
+			LongBreakMinutes:      15,
+			LongBreakEnabled:      true,
+			CyclesBeforeLongBreak: 4,
+			AutoStartBreaks:       true,
+			AutoStartWork:         false,
+			BoundaryNotifications: true,
+			BoundarySound:         true,
+			RepoSort:              sharedtypes.RepoSortChronologicalAsc,
+			StreamSort:            sharedtypes.StreamSortChronologicalAsc,
+			IssueSort:             sharedtypes.IssueSortPriority,
+		},
+	}
+
+	rendered := support.RenderSettings(state)
+	for _, want := range []string{"Boundary Notifications", "Boundary Sound"} {
+		if !strings.Contains(rendered, want) {
+			t.Fatalf("expected settings view to contain %q, got %q", want, rendered)
+		}
+	}
+}
+
 func TestReportsViewActionsExposeEditOpenDeleteSeparately(t *testing.T) {
-	actions := views.ContextualActions(views.TestingTheme(), views.ActionsState{
+	actions := views.ContextualActions(support.Theme(), views.ActionsState{
 		View: "reports",
 		Pane: "export_reports",
 	})
@@ -236,6 +313,31 @@ func TestReportsViewActionsExposeEditOpenDeleteSeparately(t *testing.T) {
 	for _, want := range []string{"[e]", "edit", "[o]", "open", "[d]", "delete", "[enter]", "details"} {
 		if !strings.Contains(joined, want) {
 			t.Fatalf("expected reports actions to contain %q, got %q", want, joined)
+		}
+	}
+}
+
+func TestConfigViewShowsSeparateICSExportDirectory(t *testing.T) {
+	state := views.ContentState{
+		View:   "config",
+		Pane:   "config",
+		Width:  90,
+		Height: 18,
+		Cursors: map[string]int{
+			"config": 0,
+		},
+		Filters: map[string]string{
+			"config": "",
+		},
+		ExportAssets: &api.ExportAssetStatus{
+			ReportsDir: "/tmp/reports",
+			ICSDir:     "/tmp/calendar",
+		},
+	}
+	rendered := support.RenderConfig(state)
+	for _, want := range []string{"Reports directory", "ICS export directory", "/tmp/calendar"} {
+		if !strings.Contains(rendered, want) {
+			t.Fatalf("expected config view to contain %q, got %q", want, rendered)
 		}
 	}
 }
@@ -266,7 +368,7 @@ func TestExportReportsViewShowsReportKindsAndScopeLabels(t *testing.T) {
 		},
 	}
 
-	rendered := views.RenderExportForTesting(views.TestingTheme(), state)
+	rendered := support.RenderReports(state)
 	for _, want := range []string{"Reports", "[weekly]", "Work / app", "2026-03-17 to 2026-03-23"} {
 		if !strings.Contains(rendered, want) {
 			t.Fatalf("expected export reports view to contain %q, got %q", want, rendered)
@@ -308,7 +410,7 @@ func TestDailySummaryShowsBarsAtHeight55AndAbove(t *testing.T) {
 		},
 	}
 
-	rendered := views.RenderDailyForTesting(views.TestingTheme(), state)
+	rendered := support.RenderDaily(state)
 	if !strings.Contains(rendered, "████") {
 		t.Fatalf("expected bars to remain visible at height 55 and above")
 	}
@@ -348,7 +450,7 @@ func TestDailySummaryUsesUltraCompactModeBelowHeight48(t *testing.T) {
 		},
 	}
 
-	rendered := views.RenderDailyForTesting(views.TestingTheme(), state)
+	rendered := support.RenderDaily(state)
 	if !strings.Contains(rendered, "Issues  0/1 resolved") || !strings.Contains(rendered, "Habits  0/1 completed") {
 		t.Fatalf("expected ultra-compact rows for both issues and habits")
 	}
@@ -397,7 +499,7 @@ func TestDailySummaryUsesTinyHeightModeAt36(t *testing.T) {
 		},
 	}
 
-	rendered := views.RenderDailyForTesting(views.TestingTheme(), state)
+	rendered := support.RenderDaily(state)
 	assertTinySummary(t, rendered)
 }
 
@@ -435,59 +537,59 @@ func TestDailySummaryUsesTinyHeightModeAt30(t *testing.T) {
 		},
 	}
 
-	rendered := views.RenderDailyForTesting(views.TestingTheme(), state)
+	rendered := support.RenderDaily(state)
 	assertTinySummary(t, rendered)
 }
 
 func TestDefaultViewUsesCompactModeAt36(t *testing.T) {
 	state := compactDefaultState(36)
-	rendered := views.RenderDefaultForTesting(views.TestingTheme(), state)
+	rendered := support.RenderDefault(state)
 	assertCompactDefault(t, rendered, state.Height)
 }
 
 func TestDefaultViewUsesCompactModeAt30(t *testing.T) {
 	state := compactDefaultState(30)
-	rendered := views.RenderDefaultForTesting(views.TestingTheme(), state)
+	rendered := support.RenderDefault(state)
 	assertCompactDefault(t, rendered, state.Height)
 }
 
 func TestWellbeingViewUsesCompactModeAt36(t *testing.T) {
 	state := compactWellbeingState(36)
-	rendered := views.RenderWellbeingForTesting(views.TestingTheme(), state)
+	rendered := support.RenderWellbeing(state)
 	assertCompactWellbeing(t, rendered, state.Height)
 }
 
 func TestWellbeingViewUsesCompactModeAt30(t *testing.T) {
 	state := compactWellbeingState(30)
-	rendered := views.RenderWellbeingForTesting(views.TestingTheme(), state)
+	rendered := support.RenderWellbeing(state)
 	assertCompactWellbeing(t, rendered, state.Height)
 }
 
 func TestUndersizedWidthShowsMinimumSizeWarning(t *testing.T) {
-	minWidth, minHeight := app.MinimumSizeForTesting()
-	model := app.NewDailyTestModel(minWidth-1, minHeight)
-	rendered := model.RenderForTesting()
+	minWidth, minHeight := support.MinimumSize()
+	model := support.NewDailyModel(minWidth-1, minHeight)
+	rendered := model.RenderString()
 	assertMinimumSizeWarning(t, rendered, minWidth-1, minHeight, minWidth, minHeight)
 }
 
 func TestUndersizedHeightShowsMinimumSizeWarning(t *testing.T) {
-	minWidth, minHeight := app.MinimumSizeForTesting()
-	model := app.NewDailyTestModel(minWidth, minHeight-1)
-	rendered := model.RenderForTesting()
+	minWidth, minHeight := support.MinimumSize()
+	model := support.NewDailyModel(minWidth, minHeight-1)
+	rendered := model.RenderString()
 	assertMinimumSizeWarning(t, rendered, minWidth, minHeight-1, minWidth, minHeight)
 }
 
 func TestUndersizedBothDimensionsShowMinimumSizeWarning(t *testing.T) {
-	minWidth, minHeight := app.MinimumSizeForTesting()
-	model := app.NewDailyTestModel(minWidth-5, minHeight-2)
-	rendered := model.RenderForTesting()
+	minWidth, minHeight := support.MinimumSize()
+	model := support.NewDailyModel(minWidth-5, minHeight-2)
+	rendered := model.RenderString()
 	assertMinimumSizeWarning(t, rendered, minWidth-5, minHeight-2, minWidth, minHeight)
 }
 
 func TestMinimumSizeThresholdRendersNormalUI(t *testing.T) {
-	minWidth, minHeight := app.MinimumSizeForTesting()
-	model := app.NewDailyTestModel(minWidth, minHeight)
-	rendered := model.RenderForTesting()
+	minWidth, minHeight := support.MinimumSize()
+	model := support.NewDailyModel(minWidth, minHeight)
+	rendered := model.RenderString()
 	if strings.Contains(rendered, "Terminal Too Small") {
 		t.Fatalf("expected normal UI at minimum size")
 	}
@@ -500,9 +602,9 @@ func TestMinimumSizeThresholdRendersNormalUI(t *testing.T) {
 }
 
 func TestAboveMinimumSizeRendersNormalUI(t *testing.T) {
-	minWidth, minHeight := app.MinimumSizeForTesting()
-	model := app.NewDailyTestModel(minWidth+1, minHeight+1)
-	rendered := model.RenderForTesting()
+	minWidth, minHeight := support.MinimumSize()
+	model := support.NewDailyModel(minWidth+1, minHeight+1)
+	rendered := model.RenderString()
 	if strings.Contains(rendered, "Terminal Too Small") {
 		t.Fatalf("expected normal UI above minimum size")
 	}
@@ -665,19 +767,19 @@ func assertCompactWellbeing(t *testing.T, rendered string, height int) {
 }
 
 func TestDailyHabitDeleteDialogUsesDailySelection(t *testing.T) {
-	model := app.NewDailyHabitDeleteTestModel([]api.HabitDailyItem{
+	model := support.NewDailyHabitDeleteModel([]api.HabitDailyItem{
 		{HabitWithMeta: api.HabitWithMeta{Habit: api.Habit{ID: 42, StreamID: 7, Name: "Inbox Zero"}}},
 	})
 
-	next, ok := app.OpenSelectedDeleteDialogForTesting(model)
+	next, ok := support.OpenSelectedDeleteDialog(model)
 	if !ok {
 		t.Fatalf("expected delete dialog to open for daily habit")
 	}
-	if next.DialogDeleteKindForTesting() != "habit" || next.DialogDeleteIDForTesting() != "42" {
-		t.Fatalf("expected habit delete dialog, got kind=%q id=%q", next.DialogDeleteKindForTesting(), next.DialogDeleteIDForTesting())
+	if next.DialogDeleteKind() != "habit" || next.DialogDeleteID() != "42" {
+		t.Fatalf("expected habit delete dialog, got kind=%q id=%q", next.DialogDeleteKind(), next.DialogDeleteID())
 	}
-	if next.DialogStreamIDForTesting() != 7 {
-		t.Fatalf("expected dialog stream id 7, got %d", next.DialogStreamIDForTesting())
+	if next.DialogStreamID() != 7 {
+		t.Fatalf("expected dialog stream id 7, got %d", next.DialogStreamID())
 	}
 }
 
@@ -687,7 +789,7 @@ func TestDefaultStreamOptionsIncludeExistingStreamsWithoutContext(t *testing.T) 
 	streamInput := textinput.New()
 	streamInput.SetValue(" app ")
 
-	options := dialogs.DefaultStreamOptionsForTesting(
+	options := support.DefaultStreamOptions(
 		[]textinput.Model{repoInput, streamInput},
 		0,
 		[]api.Repo{{ID: 1, Name: "Work"}},
@@ -702,7 +804,7 @@ func TestDefaultStreamOptionsIncludeExistingStreamsWithoutContext(t *testing.T) 
 }
 
 func TestMatchStreamSelectionNormalizesWhitespaceAndCase(t *testing.T) {
-	streamID, streamName := dialogs.MatchStreamSelectionForTesting(
+	streamID, streamName := support.MatchStreamSelection(
 		"  APP  ",
 		1,
 		"Work",

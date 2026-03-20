@@ -108,7 +108,7 @@ func CheckoutDialogSelection(inputs []textinput.Model, repoIndex, streamIndex in
 		return repoID, repoName, nil, ""
 	}
 
-	streamID, streamName := matchStreamSelection(streamRaw, repoID, repoName, streamIndex, repos, allIssues, streams, context)
+	streamID, streamName := MatchStreamSelection(streamRaw, repoID, repoName, streamIndex, repos, allIssues, streams, context)
 	if streamName == "" {
 		return repoID, repoName, nil, ""
 	}
@@ -143,7 +143,7 @@ func matchRepoSelection(raw string, repoIndex int, repos []api.Repo) (int64, str
 	return id, selected.Label
 }
 
-func matchStreamSelection(raw string, repoID int64, repoName string, streamIndex int, repos []api.Repo, allIssues []api.IssueWithMeta, streams []api.Stream, context *api.ActiveContext) (int64, string) {
+func MatchStreamSelection(raw string, repoID int64, repoName string, streamIndex int, repos []api.Repo, allIssues []api.IssueWithMeta, streams []api.Stream, context *api.ActiveContext) (int64, string) {
 	raw = strings.TrimSpace(raw)
 	if raw == "" {
 		return 0, ""

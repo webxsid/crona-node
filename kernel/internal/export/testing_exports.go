@@ -26,6 +26,10 @@ func ResolveReportsDirForTesting(paths runtime.Paths, raw string) (string, error
 	return normalizeReportsDir(paths, raw)
 }
 
+func ResolveICSDirForTesting(paths runtime.Paths, raw string) (string, error) {
+	return normalizeICSDir(paths, raw)
+}
+
 func RenderDetailedIssueGroupForTesting(issue sharedtypes.IssueWithMeta, sessions []sharedtypes.SessionHistoryEntry) []string {
 	group := reportIssueGroup{Issue: issue}
 	for _, session := range sessions {

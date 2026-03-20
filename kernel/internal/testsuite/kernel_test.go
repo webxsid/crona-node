@@ -2,16 +2,21 @@ package testsuite
 
 import (
 	"context"
+	"errors"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 	"time"
 
+	"crona/kernel/internal/core"
+	corecommands "crona/kernel/internal/core/commands"
+	"crona/kernel/internal/events"
 	"crona/kernel/internal/export"
 	"crona/kernel/internal/runtime"
 	"crona/kernel/internal/sessionnotes"
 	"crona/kernel/internal/store"
+	shareddto "crona/shared/dto"
 	sharedtypes "crona/shared/types"
 )
 
@@ -89,6 +94,41 @@ func openTestStore(t *testing.T) *store.Store {
 	return db
 }
 
+func newTestCoreContext(t *testing.T, now func() string) (*core.Context, runtime.Paths) {
+	t.Helper()
+
+	base := t.TempDir()
+	paths := runtime.Paths{
+		BaseDir:          base,
+		AssetsDir:        filepath.Join(base, "assets"),
+		BundledAssetsDir: filepath.Join(base, "assets", "bundled"),
+		UserAssetsDir:    filepath.Join(base, "assets", "user"),
+		ReportsDir:       filepath.Join(base, "reports"),
+		ICSDir:           filepath.Join(base, "calendar"),
+		LogsDir:          filepath.Join(base, "logs"),
+		CurrentLogDir:    filepath.Join(base, "logs", "today"),
+		ScratchDir:       filepath.Join(base, "scratch"),
+	}
+	if err := runtime.EnsurePaths(paths); err != nil {
+		t.Fatalf("ensure paths: %v", err)
+	}
+	db, err := store.Open(filepath.Join(base, "crona.db"))
+	if err != nil {
+		t.Fatalf("open store: %v", err)
+	}
+	t.Cleanup(func() {
+		_ = db.Close()
+	})
+	if err := store.InitSchema(context.Background(), db.DB()); err != nil {
+		t.Fatalf("init schema: %v", err)
+	}
+	coreCtx := core.NewContext(db, "local", "test-device", paths.ScratchDir, now, events.NewBus())
+	if err := coreCtx.InitDefaults(context.Background()); err != nil {
+		t.Fatalf("init defaults: %v", err)
+	}
+	return coreCtx, paths
+}
+
 func mustCreateRepo(t *testing.T, ctx context.Context, repos *store.RepoRepository, userID, now string, id int64, name string) sharedtypes.Repo {
 	t.Helper()
 	repo, err := repos.Create(ctx, sharedtypes.Repo{ID: id, Name: name}, userID, now)
@@ -131,16 +171,16 @@ func TestExportReportsListIncludesKindScopeAndDateMetadata(t *testing.T) {
 	if err := runtime.EnsurePaths(paths); err != nil {
 		t.Fatalf("ensure paths: %v", err)
 	}
-	if err := os.MkdirAll(filepath.Join(paths.BundledAssetsDir, "export"), 0o700); err != nil {
+	if err := os.MkdirAll(filepath.Join(paths.BundledAssetsDir, "export", "daily"), 0o700); err != nil {
 		t.Fatalf("mkdir export assets: %v", err)
 	}
-	if err := export.WriteFileForTesting(filepath.Join(paths.BundledAssetsDir, "export", "daily-report.default.hbs"), []byte("{{date}}")); err != nil {
+	if err := export.WriteFileForTesting(filepath.Join(paths.BundledAssetsDir, "export", "daily", "report.default.hbs"), []byte("{{date}}")); err != nil {
 		t.Fatalf("write markdown template: %v", err)
 	}
-	if err := export.WriteFileForTesting(filepath.Join(paths.BundledAssetsDir, "export", "daily-report.pdf.default.hbs"), []byte("{{date}}")); err != nil {
+	if err := export.WriteFileForTesting(filepath.Join(paths.BundledAssetsDir, "export", "daily", "report.pdf.default.hbs"), []byte("{{date}}")); err != nil {
 		t.Fatalf("write pdf template: %v", err)
 	}
-	if err := export.WriteFileForTesting(filepath.Join(paths.BundledAssetsDir, "export", "daily-report.variables.md"), []byte("vars")); err != nil {
+	if err := export.WriteFileForTesting(filepath.Join(paths.BundledAssetsDir, "export", "daily", "report.variables.md"), []byte("vars")); err != nil {
 		t.Fatalf("write variable docs: %v", err)
 	}
 
@@ -184,11 +224,201 @@ func TestExportReportsListIncludesKindScopeAndDateMetadata(t *testing.T) {
 	}
 }
 
+func TestCalendarICSFilesWriteOutsideReportsDirectory(t *testing.T) {
+	base := t.TempDir()
+	paths := runtime.Paths{
+		BaseDir:    base,
+		ReportsDir: filepath.Join(base, "reports"),
+		ICSDir:     filepath.Join(base, "calendar"),
+	}
+	if err := os.MkdirAll(paths.ReportsDir, 0o700); err != nil {
+		t.Fatalf("mkdir reports dir: %v", err)
+	}
+	if err := os.MkdirAll(paths.ICSDir, 0o700); err != nil {
+		t.Fatalf("mkdir ics dir: %v", err)
+	}
+	spec := export.ReportWriteSpecForTesting(sharedtypes.ExportReportKindCalendar, "Calendar Export", "Work / app", "", "2026-03-17", "2026-03-23", sharedtypes.ExportFormatICS, "calendar-2026-03-17-to-2026-03-23")
+	filePath, err := export.WriteReport(paths, spec, []byte("BEGIN:VCALENDAR\r\nEND:VCALENDAR"))
+	if err != nil {
+		t.Fatalf("write calendar report: %v", err)
+	}
+	if !strings.HasPrefix(filePath, paths.ICSDir) {
+		t.Fatalf("expected calendar export in ics dir, got %q", filePath)
+	}
+
+	reports, err := export.ListReports(paths)
+	if err != nil {
+		t.Fatalf("list reports: %v", err)
+	}
+	if len(reports) != 0 {
+		t.Fatalf("expected calendar exports excluded from reports list, got %d entries", len(reports))
+	}
+}
+
+func TestGenerateCalendarExportWritesRepoScopedIssuesAndSessionsFiles(t *testing.T) {
+	ctx := context.Background()
+	currentNow := "2026-03-20T09:00:00Z"
+	coreCtx, paths := newTestCoreContext(t, func() string { return currentNow })
+
+	workRepo, err := corecommands.CreateRepo(ctx, coreCtx, struct {
+		Name        string
+		Description *string
+		Color       *string
+	}{Name: "Work"})
+	if err != nil {
+		t.Fatalf("create work repo: %v", err)
+	}
+	personalRepo, err := corecommands.CreateRepo(ctx, coreCtx, struct {
+		Name        string
+		Description *string
+		Color       *string
+	}{Name: "Personal"})
+	if err != nil {
+		t.Fatalf("create personal repo: %v", err)
+	}
+	appStream, err := corecommands.CreateStream(ctx, coreCtx, struct {
+		RepoID      int64
+		Name        string
+		Description *string
+		Visibility  *sharedtypes.StreamVisibility
+	}{RepoID: workRepo.ID, Name: "app"})
+	if err != nil {
+		t.Fatalf("create app stream: %v", err)
+	}
+	opsStream, err := corecommands.CreateStream(ctx, coreCtx, struct {
+		RepoID      int64
+		Name        string
+		Description *string
+		Visibility  *sharedtypes.StreamVisibility
+	}{RepoID: workRepo.ID, Name: "ops"})
+	if err != nil {
+		t.Fatalf("create ops stream: %v", err)
+	}
+	homeStream, err := corecommands.CreateStream(ctx, coreCtx, struct {
+		RepoID      int64
+		Name        string
+		Description *string
+		Visibility  *sharedtypes.StreamVisibility
+	}{RepoID: personalRepo.ID, Name: "home"})
+	if err != nil {
+		t.Fatalf("create home stream: %v", err)
+	}
+
+	estimate := 60
+	workDesc := "Ship the keyboard-first flow"
+	workNotes := "Needs design review"
+	plannedDate := "2026-03-25"
+	plannedIssue, err := corecommands.CreateIssue(ctx, coreCtx, struct {
+		StreamID        int64
+		Title           string
+		Description     *string
+		EstimateMinutes *int
+		Notes           *string
+		TodoForDate     *string
+	}{
+		StreamID:        appStream.ID,
+		Title:           "Keyboard-first command palette",
+		Description:     &workDesc,
+		EstimateMinutes: &estimate,
+		Notes:           &workNotes,
+		TodoForDate:     &plannedDate,
+	})
+	if err != nil {
+		t.Fatalf("create planned issue: %v", err)
+	}
+	backlogIssue, err := corecommands.CreateIssue(ctx, coreCtx, struct {
+		StreamID        int64
+		Title           string
+		Description     *string
+		EstimateMinutes *int
+		Notes           *string
+		TodoForDate     *string
+	}{StreamID: opsStream.ID, Title: "Backlog issue without date"})
+	if err != nil {
+		t.Fatalf("create backlog issue: %v", err)
+	}
+	otherDate := "2026-03-26"
+	otherRepoIssue, err := corecommands.CreateIssue(ctx, coreCtx, struct {
+		StreamID        int64
+		Title           string
+		Description     *string
+		EstimateMinutes *int
+		Notes           *string
+		TodoForDate     *string
+	}{StreamID: homeStream.ID, Title: "Personal task", TodoForDate: &otherDate})
+	if err != nil {
+		t.Fatalf("create personal issue: %v", err)
+	}
+
+	currentNow = "2026-03-20T10:00:00Z"
+	if _, err := corecommands.StartSession(ctx, coreCtx, plannedIssue.ID); err != nil {
+		t.Fatalf("start work session: %v", err)
+	}
+	currentNow = "2026-03-20T11:30:00Z"
+	if _, err := corecommands.StopSession(ctx, coreCtx, corecommands.SessionEndInput{WorkedOn: strPtr("Built export flow")}); err != nil {
+		t.Fatalf("stop work session: %v", err)
+	}
+
+	currentNow = "2026-03-21T08:00:00Z"
+	if _, err := corecommands.StartSession(ctx, coreCtx, otherRepoIssue.ID); err != nil {
+		t.Fatalf("start personal session: %v", err)
+	}
+	currentNow = "2026-03-21T09:00:00Z"
+	if _, err := corecommands.StopSession(ctx, coreCtx, corecommands.SessionEndInput{WorkedOn: strPtr("Personal work")}); err != nil {
+		t.Fatalf("stop personal session: %v", err)
+	}
+
+	result, err := export.GenerateCalendarExport(ctx, coreCtx, paths, shareddto.ExportCalendarRequest{RepoID: workRepo.ID})
+	if err != nil {
+		t.Fatalf("generate calendar export: %v", err)
+	}
+	if !strings.HasSuffix(result.IssuesFilePath, filepath.Join("calendar", "1-work", "issues.ics")) {
+		t.Fatalf("unexpected issues path %q", result.IssuesFilePath)
+	}
+	if !strings.HasSuffix(result.SessionsFilePath, filepath.Join("calendar", "1-work", "sessions.ics")) {
+		t.Fatalf("unexpected sessions path %q", result.SessionsFilePath)
+	}
+
+	issuesBody, err := os.ReadFile(result.IssuesFilePath)
+	if err != nil {
+		t.Fatalf("read issues.ics: %v", err)
+	}
+	issuesText := string(issuesBody)
+	if !strings.Contains(issuesText, "SUMMARY:Keyboard-first command palette") {
+		t.Fatalf("expected planned issue in issues calendar")
+	}
+	if !strings.Contains(issuesText, "DTSTART;VALUE=DATE:20260325") || !strings.Contains(issuesText, "DTEND;VALUE=DATE:20260326") {
+		t.Fatalf("expected all-day issue event in issues calendar, got:\n%s", issuesText)
+	}
+	if strings.Contains(issuesText, backlogIssue.Title) {
+		t.Fatalf("did not expect issue without todo date in issues calendar")
+	}
+	if strings.Contains(issuesText, otherRepoIssue.Title) {
+		t.Fatalf("did not expect other repo issue in issues calendar")
+	}
+
+	sessionsBody, err := os.ReadFile(result.SessionsFilePath)
+	if err != nil {
+		t.Fatalf("read sessions.ics: %v", err)
+	}
+	sessionsText := string(sessionsBody)
+	if !strings.Contains(sessionsText, "SUMMARY:Keyboard-first command palette") {
+		t.Fatalf("expected work session in sessions calendar")
+	}
+	if !strings.Contains(sessionsText, "DTSTART:20260320T100000Z") || !strings.Contains(sessionsText, "DTEND:20260320T113000Z") {
+		t.Fatalf("expected timed session event in sessions calendar, got:\n%s", sessionsText)
+	}
+	if strings.Contains(sessionsText, otherRepoIssue.Title) {
+		t.Fatalf("did not expect other repo session in sessions calendar")
+	}
+}
+
 func TestExportReportsDirNormalizesLegacyDailyPathToReportsRoot(t *testing.T) {
 	base := t.TempDir()
 	paths := runtime.Paths{
 		BaseDir:    base,
 		ReportsDir: filepath.Join(base, "reports"),
+		ICSDir:     filepath.Join(base, "calendar"),
 	}
 	got, err := export.ResolveReportsDirForTesting(paths, filepath.Join(base, "reports", "daily"))
 	if err != nil {
@@ -196,6 +426,104 @@ func TestExportReportsDirNormalizesLegacyDailyPathToReportsRoot(t *testing.T) {
 	}
 	if got != filepath.Join(base, "reports") {
 		t.Fatalf("expected legacy reports/daily to normalize to reports root, got %q", got)
+	}
+}
+
+func TestExportICSDirNormalizesTildePath(t *testing.T) {
+	base := t.TempDir()
+	paths := runtime.Paths{
+		BaseDir: base,
+		ICSDir:  filepath.Join(base, "calendar"),
+	}
+	got, err := export.ResolveICSDirForTesting(paths, "calendar-exports")
+	if err != nil {
+		t.Fatalf("resolve ics dir: %v", err)
+	}
+	if got != filepath.Join(base, "calendar-exports") {
+		t.Fatalf("expected relative ics dir under base, got %q", got)
+	}
+}
+
+func TestEnsureAssetsMigratesLegacyDailyUserTemplateToNestedPath(t *testing.T) {
+	base := t.TempDir()
+	paths := runtime.Paths{
+		BaseDir:          base,
+		AssetsDir:        filepath.Join(base, "assets"),
+		BundledAssetsDir: filepath.Join(base, "assets", "bundled"),
+		UserAssetsDir:    filepath.Join(base, "assets", "user"),
+		ReportsDir:       filepath.Join(base, "reports"),
+		ICSDir:           filepath.Join(base, "calendar"),
+		LogsDir:          filepath.Join(base, "logs"),
+		CurrentLogDir:    filepath.Join(base, "logs", "today"),
+		ScratchDir:       filepath.Join(base, "scratch"),
+	}
+	if err := runtime.EnsurePaths(paths); err != nil {
+		t.Fatalf("ensure paths: %v", err)
+	}
+	if err := os.MkdirAll(filepath.Join(paths.UserAssetsDir, "export"), 0o700); err != nil {
+		t.Fatalf("mkdir user export dir: %v", err)
+	}
+	legacyPath := filepath.Join(paths.UserAssetsDir, "export", "daily-report.user.hbs")
+	if err := export.WriteFileForTesting(legacyPath, []byte("legacy-template")); err != nil {
+		t.Fatalf("write legacy user template: %v", err)
+	}
+
+	status, err := export.EnsureAssets(paths)
+	if err != nil {
+		t.Fatalf("ensure assets: %v", err)
+	}
+	if status.TemplatePath != filepath.Join(paths.UserAssetsDir, "export", "daily", "report.hbs") {
+		t.Fatalf("expected nested template path, got %q", status.TemplatePath)
+	}
+	if status.ICSDir != paths.ICSDir {
+		t.Fatalf("expected default ics dir %q, got %q", paths.ICSDir, status.ICSDir)
+	}
+	body, err := os.ReadFile(status.TemplatePath)
+	if err != nil {
+		t.Fatalf("read migrated template: %v", err)
+	}
+	if string(body) != "legacy-template" {
+		t.Fatalf("expected legacy template content to migrate, got %q", string(body))
+	}
+}
+
+func TestDeleteReportRemovesReportAndMetadataWithinReportsDir(t *testing.T) {
+	base := t.TempDir()
+	paths := runtime.Paths{
+		BaseDir:    base,
+		ReportsDir: filepath.Join(base, "reports"),
+	}
+	if err := os.MkdirAll(paths.ReportsDir, 0o700); err != nil {
+		t.Fatalf("mkdir reports dir: %v", err)
+	}
+	reportPath := filepath.Join(paths.ReportsDir, "daily-2026-03-19.md")
+	if err := export.WriteFileForTesting(reportPath, []byte("# report")); err != nil {
+		t.Fatalf("write report: %v", err)
+	}
+	if err := export.WriteFileForTesting(reportPath+".meta.json", []byte(`{"kind":"daily"}`)); err != nil {
+		t.Fatalf("write report metadata: %v", err)
+	}
+
+	if err := export.DeleteReport(paths, reportPath); err != nil {
+		t.Fatalf("delete report: %v", err)
+	}
+	if _, err := os.Stat(reportPath); !errors.Is(err, os.ErrNotExist) {
+		t.Fatalf("expected report removed, got %v", err)
+	}
+	if _, err := os.Stat(reportPath + ".meta.json"); !errors.Is(err, os.ErrNotExist) {
+		t.Fatalf("expected report metadata removed, got %v", err)
+	}
+}
+
+func TestDeleteReportRejectsPathOutsideReportsDir(t *testing.T) {
+	base := t.TempDir()
+	paths := runtime.Paths{
+		BaseDir:    base,
+		ReportsDir: filepath.Join(base, "reports"),
+	}
+	err := export.DeleteReport(paths, filepath.Join(base, "elsewhere", "bad.md"))
+	if err == nil {
+		t.Fatalf("expected outside-path delete to fail")
 	}
 }
 

@@ -23,6 +23,7 @@ type templateMeta struct {
 
 type exportConfig struct {
 	ReportsDir string `json:"reportsDir,omitempty"`
+	ICSDir     string `json:"icsDir,omitempty"`
 }
 
 type templateStatus struct {
@@ -57,6 +58,13 @@ func EnsureAssets(paths runtime.Paths) (sharedtypes.ExportAssetStatus, error) {
 		return sharedtypes.ExportAssetStatus{}, err
 	}
 	if err := os.MkdirAll(reportsDir, 0o700); err != nil {
+		return sharedtypes.ExportAssetStatus{}, err
+	}
+	icsDir, icsCustomized, err := resolveICSDir(paths)
+	if err != nil {
+		return sharedtypes.ExportAssetStatus{}, err
+	}
+	if err := os.MkdirAll(icsDir, 0o700); err != nil {
 		return sharedtypes.ExportAssetStatus{}, err
 	}
 
@@ -108,6 +116,9 @@ func EnsureAssets(paths runtime.Paths) (sharedtypes.ExportAssetStatus, error) {
 		ReportsDir:             reportsDir,
 		DefaultReportsDir:      defaultReportsDir(paths),
 		ReportsDirCustomized:   reportsCustomized,
+		ICSDir:                 icsDir,
+		DefaultICSDir:          defaultICSDir(paths),
+		ICSDirCustomized:       icsCustomized,
 		UserTemplateExists:     dailyMarkdownStatus.exists,
 		UserTemplateCustomized: dailyMarkdownStatus.customized,
 		DefaultUpdateAvailable: dailyMarkdownStatus.updateAvailable,
@@ -188,11 +199,11 @@ func WriteDailyReport(paths runtime.Paths, date string, format sharedtypes.Expor
 }
 
 func WriteReport(paths runtime.Paths, spec reportWriteSpec, body []byte) (string, error) {
-	reportsDir, _, err := resolveReportsDir(paths)
+	outputDir, err := resolveOutputDir(paths, spec.Kind)
 	if err != nil {
 		return "", err
 	}
-	target := filepath.Join(reportsDir, spec.BaseName+reportExt(spec.Format))
+	target := filepath.Join(outputDir, spec.BaseName+reportExt(spec.Format))
 	if err := os.MkdirAll(filepath.Dir(target), 0o700); err != nil {
 		return "", err
 	}
@@ -224,6 +235,24 @@ func SetReportsDir(paths runtime.Paths, raw string) (sharedtypes.ExportAssetStat
 			return sharedtypes.ExportAssetStatus{}, err
 		}
 		config.ReportsDir = resolved
+	}
+	if err := writeExportConfig(exportConfigPath(paths), config); err != nil {
+		return sharedtypes.ExportAssetStatus{}, err
+	}
+	return EnsureAssets(paths)
+}
+
+func SetICSDir(paths runtime.Paths, raw string) (sharedtypes.ExportAssetStatus, error) {
+	config, _ := readExportConfig(exportConfigPath(paths))
+	trimmed := strings.TrimSpace(raw)
+	if trimmed == "" {
+		config.ICSDir = ""
+	} else {
+		resolved, err := normalizeICSDir(paths, trimmed)
+		if err != nil {
+			return sharedtypes.ExportAssetStatus{}, err
+		}
+		config.ICSDir = resolved
 	}
 	if err := writeExportConfig(exportConfigPath(paths), config); err != nil {
 		return sharedtypes.ExportAssetStatus{}, err
@@ -509,6 +538,10 @@ func defaultReportsDir(paths runtime.Paths) string {
 	return paths.ReportsDir
 }
 
+func defaultICSDir(paths runtime.Paths) string {
+	return paths.ICSDir
+}
+
 func legacyDailyReportsDir(paths runtime.Paths) string {
 	return filepath.Join(paths.ReportsDir, "daily")
 }
@@ -527,6 +560,21 @@ func resolveReportsDir(paths runtime.Paths) (string, bool, error) {
 	}
 	if resolved == legacyDailyReportsDir(paths) {
 		return defaultReportsDir(paths), false, nil
+	}
+	return resolved, true, nil
+}
+
+func resolveICSDir(paths runtime.Paths) (string, bool, error) {
+	config, err := readExportConfig(exportConfigPath(paths))
+	if err != nil && !errors.Is(err, os.ErrNotExist) {
+		return "", false, err
+	}
+	if strings.TrimSpace(config.ICSDir) == "" {
+		return defaultICSDir(paths), false, nil
+	}
+	resolved, err := normalizeICSDir(paths, config.ICSDir)
+	if err != nil {
+		return "", false, err
 	}
 	return resolved, true, nil
 }
@@ -555,6 +603,37 @@ func normalizeReportsDir(paths runtime.Paths, raw string) (string, error) {
 		return defaultReportsDir(paths), nil
 	}
 	return cleaned, nil
+}
+
+func normalizeICSDir(paths runtime.Paths, raw string) (string, error) {
+	trimmed := strings.TrimSpace(raw)
+	if trimmed == "" {
+		return defaultICSDir(paths), nil
+	}
+	if trimmed == "~" || strings.HasPrefix(trimmed, "~/") {
+		home, err := os.UserHomeDir()
+		if err != nil {
+			return "", err
+		}
+		if trimmed == "~" {
+			trimmed = home
+		} else {
+			trimmed = filepath.Join(home, strings.TrimPrefix(trimmed, "~/"))
+		}
+	}
+	if !filepath.IsAbs(trimmed) {
+		trimmed = filepath.Join(paths.BaseDir, trimmed)
+	}
+	return filepath.Clean(trimmed), nil
+}
+
+func resolveOutputDir(paths runtime.Paths, kind sharedtypes.ExportReportKind) (string, error) {
+	if kind == sharedtypes.ExportReportKindCalendar {
+		dir, _, err := resolveICSDir(paths)
+		return dir, err
+	}
+	dir, _, err := resolveReportsDir(paths)
+	return dir, err
 }
 
 func readExportConfig(path string) (exportConfig, error) {
@@ -623,7 +702,7 @@ func detectPDFRenderer() pdfRenderer {
 }
 
 func normalizeExportFormat(format sharedtypes.ExportFormat) sharedtypes.ExportFormat {
-	if format == sharedtypes.ExportFormatPDF || format == sharedtypes.ExportFormatCSV {
+	if format == sharedtypes.ExportFormatPDF || format == sharedtypes.ExportFormatCSV || format == sharedtypes.ExportFormatICS {
 		return format
 	}
 	return sharedtypes.ExportFormatMarkdown
@@ -651,6 +730,8 @@ func reportExt(format sharedtypes.ExportFormat) string {
 		return ".pdf"
 	case sharedtypes.ExportFormatCSV:
 		return ".csv"
+	case sharedtypes.ExportFormatICS:
+		return ".ics"
 	default:
 		return ".md"
 	}
@@ -662,6 +743,8 @@ func exportFormatFromExt(ext string) string {
 		return string(sharedtypes.ExportFormatPDF)
 	case ".csv":
 		return string(sharedtypes.ExportFormatCSV)
+	case ".ics":
+		return string(sharedtypes.ExportFormatICS)
 	default:
 		return string(sharedtypes.ExportFormatMarkdown)
 	}

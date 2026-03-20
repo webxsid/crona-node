@@ -343,6 +343,16 @@ func (c *Client) SetExportReportsDir(path string) (*ExportAssetStatus, error) {
 	return &out, nil
 }
 
+func (c *Client) SetExportICSDir(path string) (*ExportAssetStatus, error) {
+	var out ExportAssetStatus
+	if err := c.call(protocol.MethodExportICSDirSet, shareddto.ExportICSDirUpdateRequest{
+		ICSDir: strings.TrimSpace(path),
+	}, &out); err != nil {
+		return nil, err
+	}
+	return &out, nil
+}
+
 func (c *Client) ListExportReports() ([]ExportReportFile, error) {
 	var out []ExportReportFile
 	return out, c.call(protocol.MethodExportReportsList, nil, &out)
@@ -376,6 +386,8 @@ func (c *Client) GenerateReport(input shareddto.ExportReportRequest) (*ExportRep
 		method = protocol.MethodExportIssueRollup
 	case sharedtypes.ExportReportKindCSV:
 		method = protocol.MethodExportCSV
+	case sharedtypes.ExportReportKindCalendar:
+		return nil, fmt.Errorf("calendar export uses GenerateCalendarExport")
 	default:
 		input.Kind = sharedtypes.ExportReportKindDaily
 	}
@@ -384,6 +396,17 @@ func (c *Client) GenerateReport(input shareddto.ExportReportRequest) (*ExportRep
 	input.End = strings.TrimSpace(input.End)
 	if err := c.call(method, input, &out); err != nil {
 		return nil, err
+	}
+	return &out, nil
+}
+
+func (c *Client) GenerateCalendarExport(input shareddto.ExportCalendarRequest) (*CalendarExportResult, error) {
+	var out CalendarExportResult
+	if err := c.call(protocol.MethodExportCalendar, input, &out); err != nil {
+		return nil, err
+	}
+	if strings.TrimSpace(out.IssuesFilePath) == "" || strings.TrimSpace(out.SessionsFilePath) == "" {
+		return nil, fmt.Errorf("calendar export response is incomplete; restart the kernel so the updated export handler is loaded")
 	}
 	return &out, nil
 }

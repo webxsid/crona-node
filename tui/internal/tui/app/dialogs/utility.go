@@ -83,9 +83,44 @@ func renderUtilityDialog(theme Theme, state State) string {
 			rows = append(rows, theme.StyleDim.Render("[j/k] move   [enter] choose   [esc] cancel"))
 		}
 		return modal(theme, state.Width, 54, theme.ColorGreen, rows)
+	case "export_calendar_repo":
+		rows := []string{
+			theme.StylePaneTitle.Render("Calendar Export Repo"),
+			"",
+			theme.StyleDim.Render("Anchor Date"),
+			theme.StyleHeader.Render(state.CheckInDate),
+			"",
+			theme.StyleDim.Render("Select Repo"),
+		}
+		for i, item := range state.ChoiceItems {
+			line := "  " + item
+			if state.Processing {
+				rows = append(rows, theme.StyleDim.Render(line))
+				continue
+			}
+			if i == state.ChoiceCursor {
+				line = "▶ " + item
+				rows = append(rows, theme.StyleCursor.Render(line))
+				continue
+			}
+			rows = append(rows, theme.StyleNormal.Render(line))
+		}
+		rows = append(rows, "", theme.StyleDim.Render("[j/k] move   [enter] export   [esc] back"))
+		return modal(theme, state.Width, 54, theme.ColorGreen, rows)
 	case "edit_export_reports_dir":
 		rows := []string{
 			theme.StylePaneTitle.Render("Export Reports Directory"),
+			"",
+			theme.StyleDim.Render("Path"),
+			state.Inputs[0].View(),
+			"",
+			theme.StyleDim.Render("Use an absolute path or ~/..."),
+			theme.StyleDim.Render("[enter] save   [esc] cancel"),
+		}
+		return modal(theme, state.Width, 72, theme.ColorCyan, rows)
+	case "edit_export_ics_dir":
+		rows := []string{
+			theme.StylePaneTitle.Render("ICS Export Directory"),
 			"",
 			theme.StyleDim.Render("Path"),
 			state.Inputs[0].View(),

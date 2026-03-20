@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"crona/tui/internal/tui/app/dialogs"
+	helperpkg "crona/tui/internal/tui/app/helpers"
 	"crona/tui/internal/tui/app/views"
 
 	"github.com/charmbracelet/lipgloss"
@@ -96,20 +97,20 @@ func (m Model) renderMinimumSizeWarning() string {
 }
 
 func (m Model) renderHeader() string {
-	repo := deref(nil)
-	stream := deref(nil)
+	repo := helperpkg.Deref(nil)
+	stream := helperpkg.Deref(nil)
 	mode := ""
 	if m.context != nil {
-		repo = firstNonEmpty(m.context.RepoName, nil)
-		stream = firstNonEmpty(m.context.StreamName, nil)
+		repo = helperpkg.FirstNonEmpty(m.context.RepoName, nil)
+		stream = helperpkg.FirstNonEmpty(m.context.StreamName, nil)
 	}
 	if m.isDevMode() {
 		mode = "   " + styleDim.Render("env:") + " " + styleHeader.Render("Dev")
 	}
 	contextLine := fmt.Sprintf(
 		"%s %s   %s %s%s",
-		styleDim.Render("repo:"), styleHeader.Render(truncate(repo, max(16, m.width/4))),
-		styleDim.Render("stream:"), styleHeader.Render(truncate(stream, max(16, m.width/4))),
+		styleDim.Render("repo:"), styleHeader.Render(helperpkg.Truncate(repo, max(16, m.width/4))),
+		styleDim.Render("stream:"), styleHeader.Render(helperpkg.Truncate(stream, max(16, m.width/4))),
 		mode,
 	)
 
@@ -200,9 +201,6 @@ func (m Model) renderSidebarItem(view View, label string) string {
 }
 
 func (m Model) renderContent(width, availH int) string {
-	if m.view == ViewScratch {
-		return m.renderScratchpadView(width, availH)
-	}
 	return views.RenderContent(viewTheme(), m.viewContentState(width, availH))
 }
 
@@ -425,7 +423,7 @@ func overlayBox(title string, body, footer []string, width int, border lipgloss.
 		width = innerWidth + 6
 	}
 
-	titleLine := stylePaneTitle.Foreground(border).Render(truncate(title, innerWidth))
+	titleLine := stylePaneTitle.Foreground(border).Render(helperpkg.Truncate(title, innerWidth))
 	bodyLines := renderOverlaySection(body, innerWidth, bodyStyle)
 	footerLines := renderOverlaySection(footer, innerWidth, styleDim)
 
@@ -455,7 +453,7 @@ func renderOverlaySection(lines []string, width int, lineStyle lipgloss.Style) [
 			continue
 		}
 		for _, wrapped := range wrapText(line, width) {
-			out = append(out, lineStyle.Render(truncate(wrapped, width)))
+			out = append(out, lineStyle.Render(helperpkg.Truncate(wrapped, width)))
 		}
 	}
 	return out
@@ -570,7 +568,7 @@ func (m Model) renderPaneRow(i, cur int, active bool, text string, width int) st
 }
 
 func (m Model) renderPaneRowStyled(i, cur int, active bool, text string, contentStyle *lipgloss.Style, width int) string {
-	line := truncate(text, width-6)
+	line := helperpkg.Truncate(text, width-6)
 	if contentStyle != nil {
 		line = contentStyle.Render(line)
 	}
@@ -651,13 +649,19 @@ func dialogTheme() dialogs.Theme {
 }
 
 func (m Model) viewContentState(width, height int) views.ContentState {
-	return views.ContentState{
+	state := views.ContentState{
 		View: string(m.view), Pane: string(m.pane), Width: width, Height: height, Elapsed: m.elapsed, DashboardDate: m.dashboardDate, WellbeingDate: m.currentWellbeingDate(), DefaultIssueSection: string(m.defaultIssueSection), SessionHistoryTitle: m.sessionHistoryTitle(), SessionHistoryMeta: m.sessionHistorySubtitle(),
-		Cursors:        map[string]int{"repos": m.cursor[PaneRepos], "streams": m.cursor[PaneStreams], "issues": m.cursor[PaneIssues], "habits": m.cursor[PaneHabits], "sessions": m.cursor[PaneSessions], "scratchpads": m.cursor[PaneScratchpads], "ops": m.cursor[PaneOps], "export_reports": m.cursor[PaneExportReports], "config": m.cursor[PaneConfig], "settings": m.cursor[PaneSettings]},
-		Filters:        map[string]string{"repos": m.filters[PaneRepos], "streams": m.filters[PaneStreams], "issues": m.filters[PaneIssues], "habits": m.filters[PaneHabits], "sessions": m.filters[PaneSessions], "scratchpads": m.filters[PaneScratchpads], "ops": m.filters[PaneOps], "export_reports": m.filters[PaneExportReports], "config": m.filters[PaneConfig], "settings": m.filters[PaneSettings]},
-		ScratchpadOpen: m.scratchpadOpen,
-		Repos:          m.repos, Streams: m.streams, Issues: m.issues, DailyIssues: m.dailyScopedIssues(), Habits: m.habits, AllIssues: m.allIssues, DefaultIssues: m.defaultScopedIssues(), DueHabits: m.filteredDueHabits(), DailySummary: m.dailySummary, DailyCheckIn: m.dailyCheckIn, MetricsRange: m.metricsRange, MetricsRollup: m.metricsRollup, Streaks: m.streaks, ExportAssets: m.exportAssets, ExportReports: m.exportReports, IssueSessions: m.issueSessions, SessionHistory: m.sessionHistory, Scratchpads: m.scratchpads, Ops: m.ops, Context: m.context, Timer: m.timer, Health: m.health, Settings: m.settings,
+		Cursors:            map[string]int{"repos": m.cursor[PaneRepos], "streams": m.cursor[PaneStreams], "issues": m.cursor[PaneIssues], "habits": m.cursor[PaneHabits], "sessions": m.cursor[PaneSessions], "scratchpads": m.cursor[PaneScratchpads], "ops": m.cursor[PaneOps], "export_reports": m.cursor[PaneExportReports], "config": m.cursor[PaneConfig], "settings": m.cursor[PaneSettings]},
+		Filters:            map[string]string{"repos": m.filters[PaneRepos], "streams": m.filters[PaneStreams], "issues": m.filters[PaneIssues], "habits": m.filters[PaneHabits], "sessions": m.filters[PaneSessions], "scratchpads": m.filters[PaneScratchpads], "ops": m.filters[PaneOps], "export_reports": m.filters[PaneExportReports], "config": m.filters[PaneConfig], "settings": m.filters[PaneSettings]},
+		ScratchpadOpen:     m.scratchpadOpen,
+		ScratchpadRendered: m.scratchpadViewport.View(),
+		Repos:              m.repos, Streams: m.streams, Issues: m.issues, DailyIssues: m.dailyScopedIssues(), Habits: m.habits, AllIssues: m.allIssues, DefaultIssues: m.defaultScopedIssues(), DueHabits: m.filteredDueHabits(), DailySummary: m.dailySummary, DailyCheckIn: m.dailyCheckIn, MetricsRange: m.metricsRange, MetricsRollup: m.metricsRollup, Streaks: m.streaks, ExportAssets: m.exportAssets, ExportReports: m.exportReports, IssueSessions: m.issueSessions, SessionHistory: m.sessionHistory, Scratchpads: m.scratchpads, Ops: m.ops, Context: m.context, Timer: m.timer, Health: m.health, Settings: m.settings,
 	}
+	if m.scratchpadMeta != nil {
+		state.ScratchpadName = m.scratchpadMeta.Name
+		state.ScratchpadPath = m.scratchpadMeta.Path
+	}
+	return state
 }
 
 func (m Model) dialogRenderState() dialogs.State {
@@ -691,7 +695,7 @@ func (m Model) dialogRenderState() dialogs.State {
 		if len(contextBits) > 0 {
 			meta += "  " + strings.Join(contextBits, "  ")
 		}
-		state.Stashes = append(state.Stashes, dialogs.StashItem{Label: truncate(label, 42), Meta: truncate(meta, 48)})
+		state.Stashes = append(state.Stashes, dialogs.StashItem{Label: helperpkg.Truncate(label, 42), Meta: helperpkg.Truncate(meta, 48)})
 	}
 	return state
 }

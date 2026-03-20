@@ -433,6 +433,10 @@ func (h *Handler) Handle(ctx context.Context, req protocol.Request) protocol.Res
 		return handle(req, func(input shareddto.ExportReportsDirUpdateRequest) (any, error) {
 			return export.SetReportsDir(h.paths, input.ReportsDir)
 		})
+	case protocol.MethodExportICSDirSet:
+		return handle(req, func(input shareddto.ExportICSDirUpdateRequest) (any, error) {
+			return export.SetICSDir(h.paths, input.ICSDir)
+		})
 	case protocol.MethodExportReportsList:
 		return h.handleNoParams(req, func() (any, error) {
 			return export.ListReports(h.paths)
@@ -477,6 +481,10 @@ func (h *Handler) Handle(ctx context.Context, req protocol.Request) protocol.Res
 		return handle(req, func(input shareddto.ExportReportRequest) (any, error) {
 			input.Kind = sharedtypes.ExportReportKindCSV
 			return export.GenerateReport(ctx, h.core, h.paths, input)
+		})
+	case protocol.MethodExportCalendar:
+		return handle(req, func(input shareddto.ExportCalendarRequest) (any, error) {
+			return export.GenerateCalendarExport(ctx, h.core, h.paths, input)
 		})
 
 	case protocol.MethodContextGet:
