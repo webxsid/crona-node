@@ -47,6 +47,8 @@ func run(args []string) error {
 		return runTimer(args[1:])
 	case "issue":
 		return runIssue(args[1:])
+	case "update":
+		return runUpdate(args[1:])
 	case "export":
 		return runExport(args[1:])
 	case "dev":
@@ -357,6 +359,59 @@ func runExport(args []string) error {
 	}
 }
 
+func runUpdate(args []string) error {
+	if len(args) == 0 || isHelpArg(args[0]) {
+		fmt.Print(updateUsage())
+		return nil
+	}
+	jsonOut := hasJSONFlag(args[1:])
+	switch args[0] {
+	case "status":
+		var out sharedtypes.UpdateStatus
+		if err := callKernel(protocol.MethodUpdateStatusGet, nil, &out); err != nil {
+			return err
+		}
+		if jsonOut {
+			return printJSON(out)
+		}
+		return printUpdateStatus(out)
+	case "check":
+		var out sharedtypes.UpdateStatus
+		if err := callKernel(protocol.MethodUpdateCheck, nil, &out); err != nil {
+			return err
+		}
+		if jsonOut {
+			return printJSON(out)
+		}
+		return printUpdateStatus(out)
+	case "dismiss":
+		var out sharedtypes.UpdateStatus
+		if err := callKernel(protocol.MethodUpdateDismiss, nil, &out); err != nil {
+			return err
+		}
+		if jsonOut {
+			return printJSON(out)
+		}
+		if strings.TrimSpace(out.DismissedVersion) == "" {
+			fmt.Println("no update dismissed")
+			return nil
+		}
+		fmt.Printf("dismissed update prompt for v%s\n", out.DismissedVersion)
+		return nil
+	case "notes":
+		var out sharedtypes.UpdateStatus
+		if err := callKernel(protocol.MethodUpdateStatusGet, nil, &out); err != nil {
+			return err
+		}
+		if jsonOut {
+			return printJSON(out)
+		}
+		return printUpdateNotes(out)
+	default:
+		return fmt.Errorf("unknown update command: %s", args[0])
+	}
+}
+
 func resolveCalendarRepoID(explicit int64) (int64, error) {
 	if explicit > 0 {
 		return explicit, nil
@@ -394,6 +449,7 @@ Commands:
   context     Inspect or update checked-out context
   timer       Control the active timer/session
   issue       Start issue focus
+  update      Inspect release updates and release notes
   export      Export automation artifacts such as calendar ICS files
   dev         Seed or clear dev data
 `, cliCommandName())
@@ -419,8 +475,67 @@ func issueUsage() string {
 	return "Usage: crona issue start --id <issue-id> [--json]\n"
 }
 
+func updateUsage() string {
+	return "Usage: crona update <status|check|dismiss|notes> [--json]\n"
+}
+
 func exportUsage() string {
 	return "Usage: crona export calendar [--repo-id <id>] [--json]\n"
+}
+
+func printUpdateStatus(status sharedtypes.UpdateStatus) error {
+	fmt.Printf("current: %s\nenabled: %t\nprompt: %t\n", status.CurrentVersion, status.Enabled, status.PromptEnabled)
+	if strings.TrimSpace(status.CheckedAt) != "" {
+		fmt.Printf("checked: %s\n", status.CheckedAt)
+	}
+	if strings.TrimSpace(status.LatestVersion) != "" {
+		fmt.Printf("latest: %s\n", status.LatestVersion)
+	}
+	if strings.TrimSpace(status.ReleaseName) != "" {
+		fmt.Printf("title: %s\n", status.ReleaseName)
+	} else if summary := firstReleaseSummary(status.ReleaseNotes); summary != "" {
+		fmt.Printf("summary: %s\n", summary)
+	}
+	if strings.TrimSpace(status.ReleaseURL) != "" {
+		fmt.Printf("release: %s\n", status.ReleaseURL)
+	}
+	if status.UpdateAvailable {
+		fmt.Println("update: available")
+	} else {
+		fmt.Println("update: none")
+	}
+	if strings.TrimSpace(status.DismissedVersion) != "" {
+		fmt.Printf("dismissed: %s\n", status.DismissedVersion)
+	}
+	if strings.TrimSpace(status.Error) != "" {
+		fmt.Printf("error: %s\n", status.Error)
+	}
+	return nil
+}
+
+func printUpdateNotes(status sharedtypes.UpdateStatus) error {
+	if err := printUpdateStatus(status); err != nil {
+		return err
+	}
+	fmt.Println()
+	fmt.Println("release notes:")
+	notes := strings.TrimSpace(status.ReleaseNotes)
+	if notes == "" {
+		fmt.Println("  (no release notes published)")
+		return nil
+	}
+	fmt.Println(notes)
+	return nil
+}
+
+func firstReleaseSummary(body string) string {
+	for _, line := range strings.Split(body, "\n") {
+		line = strings.TrimSpace(strings.TrimPrefix(line, "#"))
+		if line != "" {
+			return line
+		}
+	}
+	return ""
 }
 
 func devUsage() string {
@@ -656,7 +771,7 @@ func zshCompletion() string {
 	return fmt.Sprintf(`#compdef %s
 _%s() {
   local -a commands
-  commands=('kernel:Kernel commands' 'completion:Shell completions' 'context:Context commands' 'timer:Timer commands' 'issue:Issue commands' 'export:Export commands' 'dev:Dev-only commands')
+  commands=('kernel:Kernel commands' 'completion:Shell completions' 'context:Context commands' 'timer:Timer commands' 'issue:Issue commands' 'update:Update commands' 'export:Export commands' 'dev:Dev-only commands')
   if (( CURRENT == 2 )); then
     _describe 'command' commands
     return
@@ -667,6 +782,7 @@ _%s() {
     context) _values 'context command' get set clear ;;
     timer) _values 'timer command' status start pause resume end ;;
     issue) _values 'issue command' start ;;
+    update) _values 'update command' status check dismiss notes ;;
     export) _values 'export command' calendar ;;
     dev) _values 'dev command' seed clear ;;
   esac
@@ -682,7 +798,7 @@ func bashCompletion() string {
   local cur prev words cword
   _init_completion || return
   if [[ ${cword} -eq 1 ]]; then
-    COMPREPLY=( $(compgen -W "kernel completion context timer issue export dev" -- "$cur") )
+    COMPREPLY=( $(compgen -W "kernel completion context timer issue update export dev" -- "$cur") )
     return
   fi
   case "${words[1]}" in
@@ -691,6 +807,7 @@ func bashCompletion() string {
     context) COMPREPLY=( $(compgen -W "get set clear" -- "$cur") ) ;;
     timer) COMPREPLY=( $(compgen -W "status start pause resume end" -- "$cur") ) ;;
     issue) COMPREPLY=( $(compgen -W "start" -- "$cur") ) ;;
+    update) COMPREPLY=( $(compgen -W "status check dismiss notes" -- "$cur") ) ;;
     export) COMPREPLY=( $(compgen -W "calendar" -- "$cur") ) ;;
     dev) COMPREPLY=( $(compgen -W "seed clear" -- "$cur") ) ;;
   esac
@@ -701,15 +818,16 @@ complete -F _%s %s
 
 func fishCompletion() string {
 	name := cliCommandName()
-	return fmt.Sprintf(`complete -c %s -f -n "__fish_use_subcommand" -a "kernel completion context timer issue export dev"
+	return fmt.Sprintf(`complete -c %s -f -n "__fish_use_subcommand" -a "kernel completion context timer issue update export dev"
 complete -c %s -f -n "__fish_seen_subcommand_from kernel" -a "attach detach info status"
 complete -c %s -f -n "__fish_seen_subcommand_from completion" -a "zsh bash fish"
 complete -c %s -f -n "__fish_seen_subcommand_from context" -a "get set clear"
 complete -c %s -f -n "__fish_seen_subcommand_from timer" -a "status start pause resume end"
 complete -c %s -f -n "__fish_seen_subcommand_from issue" -a "start"
+complete -c %s -f -n "__fish_seen_subcommand_from update" -a "status check dismiss notes"
 complete -c %s -f -n "__fish_seen_subcommand_from export" -a "calendar"
 complete -c %s -f -n "__fish_seen_subcommand_from dev" -a "seed clear"
-`, name, name, name, name, name, name, name, name)
+`, name, name, name, name, name, name, name, name, name)
 }
 
 func cliCommandName() string {
