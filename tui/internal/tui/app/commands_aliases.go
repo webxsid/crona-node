@@ -34,6 +34,8 @@ type opsLoadedMsg = appcmd.OpsLoadedMsg
 type contextLoadedMsg = appcmd.ContextLoadedMsg
 type timerLoadedMsg = appcmd.TimerLoadedMsg
 type healthLoadedMsg = appcmd.HealthLoadedMsg
+type updateStatusLoadedMsg = appcmd.UpdateStatusLoadedMsg
+type updateDismissedMsg = appcmd.UpdateDismissedMsg
 type settingsLoadedMsg = appcmd.SettingsLoadedMsg
 type kernelInfoLoadedMsg = appcmd.KernelInfoLoadedMsg
 type kernelEventMsg = appcmd.KernelEventMsg
@@ -69,6 +71,7 @@ var (
 	loadContext                       = appcmd.LoadContext
 	loadTimer                         = appcmd.LoadTimer
 	loadHealth                        = appcmd.LoadHealth
+	loadUpdateStatus                  = appcmd.LoadUpdateStatus
 	loadSettings                      = appcmd.LoadSettings
 	loadKernelInfo                    = appcmd.LoadKernelInfo
 	loadExportAssets                  = appcmd.LoadExportAssets
@@ -82,6 +85,7 @@ var (
 	cmdUpsertDailyCheckIn             = appcmd.UpsertDailyCheckIn
 	cmdDeleteDailyCheckIn             = appcmd.DeleteDailyCheckIn
 	cmdShutdownKernel                 = appcmd.ShutdownKernel
+	cmdDismissUpdate                  = appcmd.DismissUpdate
 	cmdSeedDevData                    = appcmd.SeedDevData
 	cmdClearDevData                   = appcmd.ClearDevData
 	cmdCreateScratchpad               = appcmd.CreateScratchpad

@@ -317,6 +317,20 @@ func TestReportsViewActionsExposeEditOpenDeleteSeparately(t *testing.T) {
 	}
 }
 
+func TestGlobalActionsExposeUpdateNotesAndDismissWhenVisible(t *testing.T) {
+	actions := views.GlobalActions(support.Theme(), views.ActionsState{
+		View:          "daily",
+		Pane:          "issues",
+		UpdateVisible: true,
+	})
+	joined := strings.Join(actions, " ")
+	for _, want := range []string{"[u]", "update notes", "[U]", "dismiss update"} {
+		if !strings.Contains(joined, want) {
+			t.Fatalf("expected update actions to contain %q, got %q", want, joined)
+		}
+	}
+}
+
 func TestConfigViewShowsSeparateICSExportDirectory(t *testing.T) {
 	state := views.ContentState{
 		View:   "config",

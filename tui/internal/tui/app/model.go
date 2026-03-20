@@ -133,6 +133,7 @@ type Model struct {
 	context        *api.ActiveContext
 	timer          *api.TimerState
 	health         *api.Health
+	updateStatus   *api.UpdateStatus
 	settings       *api.CoreSettings
 	kernelInfo     *api.KernelInfo
 	elapsed        int // local seconds since last timer.state event
@@ -258,6 +259,7 @@ func (m Model) Init() tea.Cmd {
 		loadContext(m.client),
 		loadTimer(m.client),
 		loadHealth(m.client),
+		loadUpdateStatus(m.client),
 		loadSettings(m.client),
 		loadKernelInfo(m.client),
 		loadExportAssets(m.client),

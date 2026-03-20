@@ -490,6 +490,21 @@ func (c *Client) GetHealth() (*Health, error) {
 	return &out, c.call(protocol.MethodHealthGet, nil, &out)
 }
 
+func (c *Client) GetUpdateStatus() (*UpdateStatus, error) {
+	var out UpdateStatus
+	return &out, c.call(protocol.MethodUpdateStatusGet, nil, &out)
+}
+
+func (c *Client) CheckUpdateNow() (*UpdateStatus, error) {
+	var out UpdateStatus
+	return &out, c.call(protocol.MethodUpdateCheck, nil, &out)
+}
+
+func (c *Client) DismissUpdate() (*UpdateStatus, error) {
+	var out UpdateStatus
+	return &out, c.call(protocol.MethodUpdateDismiss, nil, &out)
+}
+
 func (c *Client) GetSettings() (*CoreSettings, error) {
 	var out map[string]CoreSettings
 	if err := c.call(protocol.MethodSettingsGetAll, nil, &out); err != nil {

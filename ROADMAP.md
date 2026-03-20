@@ -109,6 +109,13 @@ Prioritise machine-friendly flows and local integrations before deeper TUI dashb
 ## Phase 5 — TUI Dashboard System
 Make dashboards a first-class terminal feature after the automation surface is stable.
 
+### CLI Expansion
+- [ ] Full CRUD command trees for `repo`, `stream`, `issue`, and `habit`
+- [ ] Non-interactive flag-driven create and update flows for all core entities
+- [ ] Interactive add/edit flows in the CLI for repos, streams, issues, and habits
+- [ ] Interactive CLI context picker
+- [ ] Proper per-command help docs and examples for all CRUD surfaces
+
 ### Built-in Dashboards
 - [ ] Daily Dashboard expansion (weekly rollups, carry-over, missed-vs-done summary)
 - [ ] Activity heatmap (terminal-friendly, date-range configurable)

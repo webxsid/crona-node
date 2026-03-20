@@ -28,6 +28,8 @@ func renderSettingsView(theme Theme, state ContentState) string {
 		{"Auto Start Work", onOff(state.Settings.AutoStartWork)},
 		{"Boundary Notifications", onOff(state.Settings.BoundaryNotifications)},
 		{"Boundary Sound", onOff(state.Settings.BoundarySound)},
+		{"Update Checks", onOff(state.Settings.UpdateChecksEnabled)},
+		{"Update Prompt", onOff(state.Settings.UpdatePromptEnabled)},
 		{"Repo Sort", repoSortLabel(state.Settings.RepoSort)},
 		{"Stream Sort", streamSortLabel(state.Settings.StreamSort)},
 		{"Issue Sort", issueSortLabel(state.Settings.IssueSort)},

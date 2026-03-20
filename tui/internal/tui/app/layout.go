@@ -123,6 +123,7 @@ func (m Model) renderHeader() string {
 		IssueSessions: m.issueSessions,
 		AllIssues:     m.allIssues,
 		Health:        m.health,
+		UpdateStatus:  m.updateStatus,
 	}); secondary != "" {
 		lines = append(lines, secondary)
 	}
@@ -230,6 +231,7 @@ func (m Model) renderPane(title string, pane Pane, width, height int, emptyText 
 			ScratchpadOpen: m.scratchpadOpen,
 			TimerState:     timerState,
 			IsDevMode:      m.isDevMode(),
+			UpdateVisible:  viewsShouldShowUpdate(m.updateStatus),
 		})
 	}
 	lines = append(lines, views.RenderPaneActionLine(viewTheme(), m.filters[pane], width-6, actions))
@@ -655,7 +657,7 @@ func (m Model) viewContentState(width, height int) views.ContentState {
 		Filters:            map[string]string{"repos": m.filters[PaneRepos], "streams": m.filters[PaneStreams], "issues": m.filters[PaneIssues], "habits": m.filters[PaneHabits], "sessions": m.filters[PaneSessions], "scratchpads": m.filters[PaneScratchpads], "ops": m.filters[PaneOps], "export_reports": m.filters[PaneExportReports], "config": m.filters[PaneConfig], "settings": m.filters[PaneSettings]},
 		ScratchpadOpen:     m.scratchpadOpen,
 		ScratchpadRendered: m.scratchpadViewport.View(),
-		Repos:              m.repos, Streams: m.streams, Issues: m.issues, DailyIssues: m.dailyScopedIssues(), Habits: m.habits, AllIssues: m.allIssues, DefaultIssues: m.defaultScopedIssues(), DueHabits: m.filteredDueHabits(), DailySummary: m.dailySummary, DailyCheckIn: m.dailyCheckIn, MetricsRange: m.metricsRange, MetricsRollup: m.metricsRollup, Streaks: m.streaks, ExportAssets: m.exportAssets, ExportReports: m.exportReports, IssueSessions: m.issueSessions, SessionHistory: m.sessionHistory, Scratchpads: m.scratchpads, Ops: m.ops, Context: m.context, Timer: m.timer, Health: m.health, Settings: m.settings,
+		Repos:              m.repos, Streams: m.streams, Issues: m.issues, DailyIssues: m.dailyScopedIssues(), Habits: m.habits, AllIssues: m.allIssues, DefaultIssues: m.defaultScopedIssues(), DueHabits: m.filteredDueHabits(), DailySummary: m.dailySummary, DailyCheckIn: m.dailyCheckIn, MetricsRange: m.metricsRange, MetricsRollup: m.metricsRollup, Streaks: m.streaks, ExportAssets: m.exportAssets, ExportReports: m.exportReports, IssueSessions: m.issueSessions, SessionHistory: m.sessionHistory, Scratchpads: m.scratchpads, Ops: m.ops, Context: m.context, Timer: m.timer, Health: m.health, UpdateStatus: m.updateStatus, Settings: m.settings,
 	}
 	if m.scratchpadMeta != nil {
 		state.ScratchpadName = m.scratchpadMeta.Name

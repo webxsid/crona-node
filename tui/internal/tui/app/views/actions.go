@@ -10,6 +10,7 @@ type ActionsState struct {
 	ScratchpadOpen bool
 	TimerState     string
 	IsDevMode      bool
+	UpdateVisible  bool
 }
 
 func GlobalActions(theme Theme, state ActionsState) []string {
@@ -24,6 +25,12 @@ func GlobalActions(theme Theme, state ActionsState) []string {
 	}
 	if state.View == "daily" {
 		actions = append(actions, theme.StyleHeader.Render("[E]")+theme.StyleDim.Render(" export"))
+	}
+	if state.UpdateVisible {
+		actions = append(actions,
+			theme.StyleHeader.Render("[u]")+theme.StyleDim.Render(" update notes"),
+			theme.StyleHeader.Render("[U]")+theme.StyleDim.Render(" dismiss update"),
+		)
 	}
 	return actions
 }
@@ -178,6 +185,10 @@ func SettingsItemLabels(settings *sharedtypes.CoreSettings) []string {
 		"Cycles Before Long Break",
 		"Auto Start Breaks",
 		"Auto Start Work",
+		"Boundary Notifications",
+		"Boundary Sound",
+		"Update Checks",
+		"Update Prompt",
 		"Repo Sort",
 		"Stream Sort",
 		"Issue Sort",

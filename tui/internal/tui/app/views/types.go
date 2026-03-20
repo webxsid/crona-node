@@ -68,6 +68,7 @@ type ContentState struct {
 	Context        *api.ActiveContext
 	Timer          *api.TimerState
 	Health         *api.Health
+	UpdateStatus   *api.UpdateStatus
 	Settings       *api.CoreSettings
 }
 

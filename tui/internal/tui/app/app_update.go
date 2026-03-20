@@ -1,6 +1,7 @@
 package app
 
 import (
+	"crona/tui/internal/api"
 	"crona/tui/internal/logger"
 	"fmt"
 	"strings"
@@ -188,6 +189,27 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case healthLoadedMsg:
 		m.health = msg.Health
 		return m, nil
+	case updateStatusLoadedMsg:
+		prevVisible := viewsShouldShowUpdate(m.updateStatus)
+		prevVersion := ""
+		if m.updateStatus != nil {
+			prevVersion = m.updateStatus.LatestVersion
+		}
+		m.updateStatus = msg.Status
+		if viewsShouldShowUpdate(m.updateStatus) && (!prevVisible || prevVersion != m.updateStatus.LatestVersion) {
+			message := "Update available: v" + m.updateStatus.LatestVersion
+			if title := strings.TrimSpace(viewsFirstUpdateSummary(m.updateStatus)); title != "" {
+				message += " - " + title
+			}
+			return m, m.setStatus(message, false)
+		}
+		return m, nil
+	case updateDismissedMsg:
+		m.updateStatus = msg.Status
+		if strings.TrimSpace(msg.Status.DismissedVersion) == "" {
+			return m, m.setStatus("No update prompt dismissed", false)
+		}
+		return m, m.setStatus("Update prompt dismissed for v"+msg.Status.DismissedVersion, false)
 	case settingsLoadedMsg:
 		m.settings = msg.Settings
 		m.clampFiltered(PaneSettings)
@@ -211,12 +233,12 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		cmd := m.setStatus("Dev seed loaded", false)
 		m.view = ViewDaily
 		m.pane = viewDefaultPane[m.view]
-		return m, tea.Batch(cmd, loadKernelInfo(m.client), loadRepos(m.client), loadAllIssues(m.client), loadDueHabits(m.client, m.currentDashboardDate()), loadDailySummary(m.client, m.dashboardDate), loadWellbeing(m.client, m.currentWellbeingDate()), loadSessionHistoryForModel(m, 200), loadScratchpads(m.client), loadStashes(m.client), loadOps(m.client, m.currentOpsLimit()), loadContext(m.client), loadTimer(m.client), loadSettings(m.client))
+		return m, tea.Batch(cmd, loadKernelInfo(m.client), loadRepos(m.client), loadAllIssues(m.client), loadDueHabits(m.client, m.currentDashboardDate()), loadDailySummary(m.client, m.dashboardDate), loadWellbeing(m.client, m.currentWellbeingDate()), loadSessionHistoryForModel(m, 200), loadScratchpads(m.client), loadStashes(m.client), loadOps(m.client, m.currentOpsLimit()), loadContext(m.client), loadTimer(m.client), loadUpdateStatus(m.client), loadSettings(m.client))
 	case devClearedMsg:
 		cmd := m.setStatus("Dev data cleared", false)
 		m.view = ViewDaily
 		m.pane = viewDefaultPane[m.view]
-		return m, tea.Batch(cmd, loadKernelInfo(m.client), loadRepos(m.client), loadAllIssues(m.client), loadDueHabits(m.client, m.currentDashboardDate()), loadDailySummary(m.client, m.dashboardDate), loadWellbeing(m.client, m.currentWellbeingDate()), loadSessionHistoryForModel(m, 200), loadScratchpads(m.client), loadStashes(m.client), loadOps(m.client, m.currentOpsLimit()), loadContext(m.client), loadTimer(m.client), loadSettings(m.client))
+		return m, tea.Batch(cmd, loadKernelInfo(m.client), loadRepos(m.client), loadAllIssues(m.client), loadDueHabits(m.client, m.currentDashboardDate()), loadDailySummary(m.client, m.dashboardDate), loadWellbeing(m.client, m.currentWellbeingDate()), loadSessionHistoryForModel(m, 200), loadScratchpads(m.client), loadStashes(m.client), loadOps(m.client, m.currentOpsLimit()), loadContext(m.client), loadTimer(m.client), loadUpdateStatus(m.client), loadSettings(m.client))
 	case sessionAmendedMsg:
 		cmd := m.setStatus("Session amended", false)
 		return m, tea.Batch(cmd, loadSessionHistoryForModel(m, 200), loadSessionDetail(m.client, msg.ID))
@@ -341,4 +363,30 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	default:
 		return m, nil
 	}
+}
+
+func viewsShouldShowUpdate(status *api.UpdateStatus) bool {
+	if status == nil {
+		return false
+	}
+	if !status.Enabled || !status.PromptEnabled || !status.UpdateAvailable {
+		return false
+	}
+	return strings.TrimSpace(status.LatestVersion) != "" && strings.TrimSpace(status.LatestVersion) != strings.TrimSpace(status.DismissedVersion)
+}
+
+func viewsFirstUpdateSummary(status *api.UpdateStatus) string {
+	if status == nil {
+		return ""
+	}
+	if title := strings.TrimSpace(status.ReleaseName); title != "" {
+		return title
+	}
+	for _, line := range strings.Split(status.ReleaseNotes, "\n") {
+		line = strings.TrimSpace(strings.TrimPrefix(line, "#"))
+		if line != "" {
+			return line
+		}
+	}
+	return ""
 }

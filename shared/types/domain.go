@@ -133,6 +133,8 @@ const (
 	CoreSettingsKeyAutoStartWork         CoreSettingsKey = "autoStartWork"
 	CoreSettingsKeyBoundaryNotifications CoreSettingsKey = "boundaryNotificationsEnabled"
 	CoreSettingsKeyBoundarySound         CoreSettingsKey = "boundarySoundEnabled"
+	CoreSettingsKeyUpdateChecksEnabled   CoreSettingsKey = "updateChecksEnabled"
+	CoreSettingsKeyUpdatePromptEnabled   CoreSettingsKey = "updatePromptEnabled"
 	CoreSettingsKeyRepoSort              CoreSettingsKey = "repoSort"
 	CoreSettingsKeyStreamSort            CoreSettingsKey = "streamSort"
 	CoreSettingsKeyIssueSort             CoreSettingsKey = "issueSort"
@@ -402,6 +404,8 @@ type CoreSettings struct {
 	AutoStartWork         bool       `json:"autoStartWork"`
 	BoundaryNotifications bool       `json:"boundaryNotificationsEnabled"`
 	BoundarySound         bool       `json:"boundarySoundEnabled"`
+	UpdateChecksEnabled   bool       `json:"updateChecksEnabled"`
+	UpdatePromptEnabled   bool       `json:"updatePromptEnabled"`
 	RepoSort              RepoSort   `json:"repoSort"`
 	StreamSort            StreamSort `json:"streamSort"`
 	IssueSort             IssueSort  `json:"issueSort"`
@@ -473,6 +477,21 @@ type KernelInfo struct {
 	StartedAt  string `json:"startedAt"`
 	ScratchDir string `json:"scratchDir"`
 	Env        string `json:"env"`
+}
+
+type UpdateStatus struct {
+	CurrentVersion   string `json:"currentVersion"`
+	LatestVersion    string `json:"latestVersion,omitempty"`
+	ReleaseName      string `json:"releaseName,omitempty"`
+	ReleaseNotes     string `json:"releaseNotes,omitempty"`
+	ReleaseURL       string `json:"releaseUrl,omitempty"`
+	PublishedAt      string `json:"publishedAt,omitempty"`
+	CheckedAt        string `json:"checkedAt,omitempty"`
+	UpdateAvailable  bool   `json:"updateAvailable"`
+	Enabled          bool   `json:"enabled"`
+	PromptEnabled    bool   `json:"promptEnabled"`
+	DismissedVersion string `json:"dismissedVersion,omitempty"`
+	Error            string `json:"error,omitempty"`
 }
 
 type ExportOutputMode string

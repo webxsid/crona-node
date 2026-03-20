@@ -63,6 +63,8 @@ func InitSchema(ctx context.Context, db *bun.DB) error {
 	for columnName, defaultValue := range map[string]int{
 		"boundary_notifications_enabled": 1,
 		"boundary_sound_enabled":         1,
+		"update_checks_enabled":          1,
+		"update_prompt_enabled":          1,
 	} {
 		if err := ensureCoreSettingsBoolColumn(ctx, db, columnName, defaultValue); err != nil {
 			return err

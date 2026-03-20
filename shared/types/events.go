@@ -36,6 +36,7 @@ const (
 	EventTypeScratchpadCreated    = "scratchpad.created"
 	EventTypeScratchpadUpdated    = "scratchpad.updated"
 	EventTypeScratchpadDeleted    = "scratchpad.deleted"
+	EventTypeUpdateStatus         = "update.status"
 )
 
 type KernelEvent struct {

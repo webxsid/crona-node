@@ -149,6 +149,8 @@ type CoreSettingsModel struct {
 	AutoStartWork         bool   `bun:"auto_start_work,notnull,type:integer"`
 	BoundaryNotifications bool   `bun:"boundary_notifications_enabled,notnull,type:integer"`
 	BoundarySound         bool   `bun:"boundary_sound_enabled,notnull,type:integer"`
+	UpdateChecksEnabled   bool   `bun:"update_checks_enabled,notnull,type:integer"`
+	UpdatePromptEnabled   bool   `bun:"update_prompt_enabled,notnull,type:integer"`
 	RepoSort              string `bun:"repo_sort,notnull,type:text"`
 	StreamSort            string `bun:"stream_sort,notnull,type:text"`
 	IssueSort             string `bun:"issue_sort,notnull,type:text"`

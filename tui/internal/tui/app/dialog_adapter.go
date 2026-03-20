@@ -133,6 +133,28 @@ func (m Model) openDatePickerDialog(parentDialog string, issueID int64, inputInd
 func (m Model) openViewEntityDialog(title string, name string, meta string, body string) Model {
 	return m.withDialogState(dialogpkg.OpenViewEntity(m.dialogState(), title, name, meta, body))
 }
+
+func (m Model) openUpdateNotesDialog() Model {
+	if m.updateStatus == nil {
+		return m
+	}
+	name := "v" + strings.TrimSpace(m.updateStatus.LatestVersion)
+	if title := strings.TrimSpace(m.updateStatus.ReleaseName); title != "" {
+		name += "  " + title
+	}
+	metaParts := []string{}
+	if strings.TrimSpace(m.updateStatus.PublishedAt) != "" {
+		metaParts = append(metaParts, "Published "+strings.TrimSpace(m.updateStatus.PublishedAt))
+	}
+	if strings.TrimSpace(m.updateStatus.ReleaseURL) != "" {
+		metaParts = append(metaParts, "URL "+strings.TrimSpace(m.updateStatus.ReleaseURL))
+	}
+	body := strings.TrimSpace(m.updateStatus.ReleaseNotes)
+	if body == "" {
+		body = "No release notes were published for this release."
+	}
+	return m.openViewEntityDialog("Update Notes", name, strings.Join(metaParts, "   "), body)
+}
 func (m Model) openExportDailyDialog() Model {
 	includePDF := m.exportAssets != nil && m.exportAssets.PDFRendererAvailable
 	var checkedRepoID *int64

@@ -70,6 +70,14 @@ func (m Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		}
 		logger.Info("Kernel restart requested")
 		return m, nil
+	case "u":
+		if viewsShouldShowUpdate(m.updateStatus) {
+			return m.openUpdateNotesDialog(), nil
+		}
+	case "U":
+		if viewsShouldShowUpdate(m.updateStatus) {
+			return m, cmdDismissUpdate(m.client)
+		}
 	}
 
 	switch key {
@@ -470,10 +478,14 @@ func (m Model) adjustSelectedSetting(dir int) (tea.Model, tea.Cmd) {
 	case 10:
 		return m, cmdPatchSetting(m.client, sharedtypes.CoreSettingsKeyBoundarySound, !m.settings.BoundarySound, repoID, streamID, m.dashboardDate)
 	case 11:
-		return m, cmdPatchSetting(m.client, sharedtypes.CoreSettingsKeyRepoSort, nextRepoSort(m.settings.RepoSort, dir), repoID, streamID, m.dashboardDate)
+		return m, cmdPatchSetting(m.client, sharedtypes.CoreSettingsKeyUpdateChecksEnabled, !m.settings.UpdateChecksEnabled, repoID, streamID, m.dashboardDate)
 	case 12:
-		return m, cmdPatchSetting(m.client, sharedtypes.CoreSettingsKeyStreamSort, nextStreamSort(m.settings.StreamSort, dir), repoID, streamID, m.dashboardDate)
+		return m, cmdPatchSetting(m.client, sharedtypes.CoreSettingsKeyUpdatePromptEnabled, !m.settings.UpdatePromptEnabled, repoID, streamID, m.dashboardDate)
 	case 13:
+		return m, cmdPatchSetting(m.client, sharedtypes.CoreSettingsKeyRepoSort, nextRepoSort(m.settings.RepoSort, dir), repoID, streamID, m.dashboardDate)
+	case 14:
+		return m, cmdPatchSetting(m.client, sharedtypes.CoreSettingsKeyStreamSort, nextStreamSort(m.settings.StreamSort, dir), repoID, streamID, m.dashboardDate)
+	case 15:
 		return m, cmdPatchSetting(m.client, sharedtypes.CoreSettingsKeyIssueSort, nextIssueSort(m.settings.IssueSort, dir), repoID, streamID, m.dashboardDate)
 	default:
 		return m, nil

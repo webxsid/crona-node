@@ -27,6 +27,7 @@ type ExportOutputMode = sharedtypes.ExportOutputMode
 type ExportFormat = sharedtypes.ExportFormat
 type ActiveContext = sharedtypes.ActiveContext
 type CoreSettings = sharedtypes.CoreSettings
+type UpdateStatus = sharedtypes.UpdateStatus
 type TimerState = sharedtypes.TimerState
 type Health = sharedtypes.Health
 type Session = sharedtypes.Session

@@ -44,6 +44,8 @@ type OpsLoadedMsg struct{ Ops []api.Op }
 type ContextLoadedMsg struct{ Ctx *api.ActiveContext }
 type TimerLoadedMsg struct{ Timer *api.TimerState }
 type HealthLoadedMsg struct{ Health *api.Health }
+type UpdateStatusLoadedMsg struct{ Status *api.UpdateStatus }
+type UpdateDismissedMsg struct{ Status *api.UpdateStatus }
 type SettingsLoadedMsg struct{ Settings *api.CoreSettings }
 type KernelInfoLoadedMsg struct{ Info *api.KernelInfo }
 type KernelEventMsg struct{ Event api.KernelEvent }

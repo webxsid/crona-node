@@ -12,6 +12,8 @@ var DefaultCoreSettings = map[string]any{
 	"autoStartWork":                false,
 	"boundaryNotificationsEnabled": true,
 	"boundarySoundEnabled":         true,
+	"updateChecksEnabled":          true,
+	"updatePromptEnabled":          true,
 	"repoSort":                     string("chronological_asc"),
 	"streamSort":                   string("chronological_asc"),
 	"issueSort":                    string("priority"),

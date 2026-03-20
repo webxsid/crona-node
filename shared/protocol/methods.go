@@ -8,11 +8,14 @@ const (
 
 	MethodHealthGet = "health.get"
 
-	MethodKernelInfoGet  = "kernel.info.get"
-	MethodKernelShutdown = "kernel.shutdown"
-	MethodKernelRestart  = "kernel.restart"
-	MethodKernelSeedDev  = "kernel.dev.seed"
-	MethodKernelClearDev = "kernel.dev.clear"
+	MethodKernelInfoGet   = "kernel.info.get"
+	MethodKernelShutdown  = "kernel.shutdown"
+	MethodKernelRestart   = "kernel.restart"
+	MethodKernelSeedDev   = "kernel.dev.seed"
+	MethodKernelClearDev  = "kernel.dev.clear"
+	MethodUpdateStatusGet = "update.status.get"
+	MethodUpdateCheck     = "update.check"
+	MethodUpdateDismiss   = "update.dismiss"
 
 	MethodRepoList   = "repo.list"
 	MethodRepoCreate = "repo.create"

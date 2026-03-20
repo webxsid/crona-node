@@ -7,6 +7,7 @@ import (
 	"strconv"
 	"time"
 
+	"crona/shared/config"
 	sharedtypes "crona/shared/types"
 
 	"github.com/uptrace/bun"
@@ -78,6 +79,10 @@ func (r *CoreSettingsRepository) SetSetting(ctx context.Context, userID string, 
 		q = q.Set("boundary_notifications_enabled = ?", value)
 	case sharedtypes.CoreSettingsKeyBoundarySound:
 		q = q.Set("boundary_sound_enabled = ?", value)
+	case sharedtypes.CoreSettingsKeyUpdateChecksEnabled:
+		q = q.Set("update_checks_enabled = ?", value)
+	case sharedtypes.CoreSettingsKeyUpdatePromptEnabled:
+		q = q.Set("update_prompt_enabled = ?", value)
 	case sharedtypes.CoreSettingsKeyRepoSort:
 		q = q.Set("repo_sort = ?", string(sharedtypes.NormalizeRepoSort(sharedtypes.RepoSort(toString(value)))))
 	case sharedtypes.CoreSettingsKeyStreamSort:
@@ -111,6 +116,12 @@ func (r *CoreSettingsRepository) InitializeDefaults(ctx context.Context, userID 
 		return err
 	}
 	now := strconv.FormatInt(time.Now().UnixMilli(), 10)
+	updateChecksEnabled := DefaultCoreSettings["updateChecksEnabled"].(bool)
+	updatePromptEnabled := DefaultCoreSettings["updatePromptEnabled"].(bool)
+	if config.Current().IsDev() {
+		updateChecksEnabled = false
+		updatePromptEnabled = false
+	}
 	_, err = r.db.NewInsert().Model(&CoreSettingsModel{
 		UserID:                userID,
 		DeviceID:              deviceID,
@@ -125,6 +136,8 @@ func (r *CoreSettingsRepository) InitializeDefaults(ctx context.Context, userID 
 		AutoStartWork:         DefaultCoreSettings["autoStartWork"].(bool),
 		BoundaryNotifications: DefaultCoreSettings["boundaryNotificationsEnabled"].(bool),
 		BoundarySound:         DefaultCoreSettings["boundarySoundEnabled"].(bool),
+		UpdateChecksEnabled:   updateChecksEnabled,
+		UpdatePromptEnabled:   updatePromptEnabled,
 		RepoSort:              DefaultCoreSettings["repoSort"].(string),
 		StreamSort:            DefaultCoreSettings["streamSort"].(string),
 		IssueSort:             DefaultCoreSettings["issueSort"].(string),
@@ -158,6 +171,10 @@ func coreSettingsValue(row CoreSettingsModel, key sharedtypes.CoreSettingsKey) a
 		return row.BoundaryNotifications
 	case sharedtypes.CoreSettingsKeyBoundarySound:
 		return row.BoundarySound
+	case sharedtypes.CoreSettingsKeyUpdateChecksEnabled:
+		return row.UpdateChecksEnabled
+	case sharedtypes.CoreSettingsKeyUpdatePromptEnabled:
+		return row.UpdatePromptEnabled
 	case sharedtypes.CoreSettingsKeyRepoSort:
 		return sharedtypes.NormalizeRepoSort(sharedtypes.RepoSort(row.RepoSort))
 	case sharedtypes.CoreSettingsKeyStreamSort:
@@ -184,6 +201,8 @@ func coreSettingsFromModel(row CoreSettingsModel) sharedtypes.CoreSettings {
 		AutoStartWork:         row.AutoStartWork,
 		BoundaryNotifications: row.BoundaryNotifications,
 		BoundarySound:         row.BoundarySound,
+		UpdateChecksEnabled:   row.UpdateChecksEnabled,
+		UpdatePromptEnabled:   row.UpdatePromptEnabled,
 		RepoSort:              sharedtypes.NormalizeRepoSort(sharedtypes.RepoSort(row.RepoSort)),
 		StreamSort:            sharedtypes.NormalizeStreamSort(sharedtypes.StreamSort(row.StreamSort)),
 		IssueSort:             sharedtypes.NormalizeIssueSort(sharedtypes.IssueSort(row.IssueSort)),

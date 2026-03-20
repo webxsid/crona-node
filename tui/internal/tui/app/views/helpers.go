@@ -493,7 +493,7 @@ func filteredSettingIndices(filter string, settings *api.CoreSettings) []int {
 	if settings == nil {
 		return nil
 	}
-	labels := []string{"Timer Mode", "Breaks Enabled", "Work Duration", "Short Break", "Long Break", "Long Break Enabled", "Cycles Before Long Break", "Auto Start Breaks", "Auto Start Work", "Repo Sort", "Stream Sort", "Issue Sort"}
+	labels := []string{"Timer Mode", "Breaks Enabled", "Work Duration", "Short Break", "Long Break", "Long Break Enabled", "Cycles Before Long Break", "Auto Start Breaks", "Auto Start Work", "Boundary Notifications", "Boundary Sound", "Update Checks", "Update Prompt", "Repo Sort", "Stream Sort", "Issue Sort"}
 	return filteredStrings(labels, filter)
 }
 

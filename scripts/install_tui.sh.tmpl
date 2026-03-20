@@ -8,6 +8,51 @@ VERSION_FILE="${INSTALL_DIR}/.crona-version"
 CRONA_HOME="${CRONA_HOME:-$HOME/.crona}"
 ASSETS_DIR="${CRONA_HOME}/assets/bundled"
 
+stop_running_kernel() {
+  info_file="${CRONA_HOME}/kernel.json"
+  socket_file="${CRONA_HOME}/kernel.sock"
+
+  if [ ! -f "${info_file}" ]; then
+    return 0
+  fi
+
+  kernel_pid="$(sed -n 's/.*"pid"[[:space:]]*:[[:space:]]*\([0-9][0-9]*\).*/\1/p' "${info_file}" | head -n 1)"
+  if [ -z "${kernel_pid}" ]; then
+    return 0
+  fi
+
+  if ! kill -0 "${kernel_pid}" 2>/dev/null; then
+    rm -f "${info_file}" "${socket_file}"
+    return 0
+  fi
+
+  kernel_cmd="$(ps -p "${kernel_pid}" -o command= 2>/dev/null || true)"
+  case "${kernel_cmd}" in
+    *crona-kernel*)
+      ;;
+    *)
+      echo "Refusing to stop pid ${kernel_pid}; kernel.json does not point at a Crona kernel process." >&2
+      return 1
+      ;;
+  esac
+
+  echo "Stopping running Crona kernel (pid ${kernel_pid}) before install"
+  kill "${kernel_pid}" 2>/dev/null || true
+
+  wait_count=0
+  while kill -0 "${kernel_pid}" 2>/dev/null; do
+    wait_count=$((wait_count + 1))
+    if [ "${wait_count}" -ge 10 ]; then
+      echo "Crona kernel did not stop cleanly; sending SIGKILL"
+      kill -9 "${kernel_pid}" 2>/dev/null || true
+      break
+    fi
+    sleep 1
+  done
+
+  rm -f "${info_file}" "${socket_file}"
+}
+
 prompt_replace() {
   installed_version="$1"
 
@@ -86,6 +131,8 @@ fi
 if [ -x "${INSTALL_DIR}/crona-kernel" ] || [ -x "${INSTALL_DIR}/crona-tui" ]; then
   prompt_replace "${INSTALLED_VERSION}"
 fi
+
+stop_running_kernel
 
 echo "Installing Crona ${VERSION} to ${INSTALL_DIR}"
 curl -fsSL "${KERNEL_URL}" -o "${INSTALL_DIR}/crona-kernel.tmp"

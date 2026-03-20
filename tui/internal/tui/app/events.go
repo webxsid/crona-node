@@ -83,6 +83,8 @@ func handleKernelEvent(m Model, event api.KernelEvent) (Model, tea.Cmd) {
 	case "timer.boundary":
 		m.elapsed = 0
 		return m, loadTimer(m.client)
+	case "update.status":
+		return m, loadUpdateStatus(m.client)
 	case "ops.created":
 		return m, loadOps(m.client, m.currentOpsLimit())
 	}

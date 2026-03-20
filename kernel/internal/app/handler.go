@@ -14,6 +14,7 @@ import (
 	"crona/kernel/internal/runtime"
 	"crona/kernel/internal/scratchfile"
 	"crona/kernel/internal/store"
+	"crona/kernel/internal/updatecheck"
 	"crona/shared/config"
 	shareddto "crona/shared/dto"
 	"crona/shared/protocol"
@@ -30,9 +31,10 @@ type Handler struct {
 	shutdown  func()
 	envMode   string
 	paths     runtime.Paths
+	updater   *updatecheck.Service
 }
 
-func NewHandler(startedAt string, info sharedtypes.KernelInfo, pingDB func(context.Context) error, coreCtx *core.Context, bus *events.Bus, shutdown func(), envMode string, paths runtime.Paths) *Handler {
+func NewHandler(startedAt string, info sharedtypes.KernelInfo, pingDB func(context.Context) error, coreCtx *core.Context, bus *events.Bus, shutdown func(), envMode string, paths runtime.Paths, updater *updatecheck.Service) *Handler {
 	return &Handler{
 		startedAt: startedAt,
 		info:      info,
@@ -43,6 +45,7 @@ func NewHandler(startedAt string, info sharedtypes.KernelInfo, pingDB func(conte
 		shutdown:  shutdown,
 		envMode:   envMode,
 		paths:     paths,
+		updater:   updater,
 	}
 }
 
@@ -112,6 +115,27 @@ func (h *Handler) Handle(ctx context.Context, req protocol.Request) protocol.Res
 				return nil, errors.New("kernel.dev.clear is only available in Dev mode")
 			}
 			return shareddto.OKResponse{OK: true}, h.clearDevData(ctx)
+		})
+	case protocol.MethodUpdateStatusGet:
+		return h.handleNoParams(req, func() (any, error) {
+			if h.updater == nil {
+				return sharedtypes.UpdateStatus{CurrentVersion: "unknown", Enabled: false}, nil
+			}
+			return h.updater.Status(), nil
+		})
+	case protocol.MethodUpdateCheck:
+		return h.handleNoParams(req, func() (any, error) {
+			if h.updater == nil {
+				return sharedtypes.UpdateStatus{CurrentVersion: "unknown", Enabled: false}, nil
+			}
+			return h.updater.CheckNow(ctx)
+		})
+	case protocol.MethodUpdateDismiss:
+		return h.handleNoParams(req, func() (any, error) {
+			if h.updater == nil {
+				return sharedtypes.UpdateStatus{CurrentVersion: "unknown", Enabled: false}, nil
+			}
+			return h.updater.DismissLatest()
 		})
 
 	case protocol.MethodRepoList:

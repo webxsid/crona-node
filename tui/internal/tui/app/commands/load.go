@@ -229,6 +229,17 @@ func LoadHealth(c *api.Client) tea.Cmd {
 	}
 }
 
+func LoadUpdateStatus(c *api.Client) tea.Cmd {
+	return func() tea.Msg {
+		status, err := c.GetUpdateStatus()
+		if err != nil {
+			logger.Errorf("loadUpdateStatus: %v", err)
+			return ErrMsg{Err: err}
+		}
+		return UpdateStatusLoadedMsg{Status: status}
+	}
+}
+
 func LoadSettings(c *api.Client) tea.Cmd {
 	return func() tea.Msg {
 		settings, err := c.GetSettings()

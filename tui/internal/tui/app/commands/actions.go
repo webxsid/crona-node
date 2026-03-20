@@ -25,6 +25,8 @@ func PatchSetting(c *api.Client, key sharedtypes.CoreSettingsKey, value any, rep
 		}
 		cmds := []tea.Cmd{LoadSettings(c)}
 		switch key {
+		case sharedtypes.CoreSettingsKeyUpdateChecksEnabled, sharedtypes.CoreSettingsKeyUpdatePromptEnabled:
+			cmds = append(cmds, LoadUpdateStatus(c))
 		case sharedtypes.CoreSettingsKeyRepoSort:
 			cmds = append(cmds, LoadRepos(c))
 		case sharedtypes.CoreSettingsKeyStreamSort:
@@ -68,6 +70,17 @@ func ShutdownKernel(c *api.Client) tea.Cmd {
 			return ErrMsg{Err: err}
 		}
 		return KernelShutdownMsg{}
+	}
+}
+
+func DismissUpdate(c *api.Client) tea.Cmd {
+	return func() tea.Msg {
+		status, err := c.DismissUpdate()
+		if err != nil {
+			logger.Errorf("DismissUpdate: %v", err)
+			return ErrMsg{Err: err}
+		}
+		return UpdateDismissedMsg{Status: status}
 	}
 }
 

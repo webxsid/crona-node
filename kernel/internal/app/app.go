@@ -14,6 +14,7 @@ import (
 	"crona/kernel/internal/notify"
 	"crona/kernel/internal/runtime"
 	"crona/kernel/internal/store"
+	"crona/kernel/internal/updatecheck"
 	"crona/shared/config"
 	sharedtypes "crona/shared/types"
 )
@@ -65,6 +66,7 @@ func Run(ctx context.Context) error {
 		return fmt.Errorf("init command defaults: %w", err)
 	}
 	_ = notify.Start(runCtx, commandCtx, bus, logger)
+	updater := updatecheck.Start(runCtx, commandCtx, bus, logger, paths, appEnv.Mode)
 	if _, err := export.EnsureAssets(paths); err != nil {
 		return fmt.Errorf("ensure export assets: %w", err)
 	}
@@ -78,7 +80,7 @@ func Run(ctx context.Context) error {
 		Env:        appEnv.Mode,
 	}
 
-	server := ipc.NewServer(paths.SocketPath, NewHandler(startedAt, info, dbStore.Ping, commandCtx, bus, cancel, appEnv.Mode, paths), logger)
+	server := ipc.NewServer(paths.SocketPath, NewHandler(startedAt, info, dbStore.Ping, commandCtx, bus, cancel, appEnv.Mode, paths, updater), logger)
 	timer := corecommands.GetTimerService(commandCtx)
 	if err := timer.RecoverBoundary(runCtx); err != nil {
 		return fmt.Errorf("recover timer boundary: %w", err)
